@@ -4,12 +4,10 @@
 
 #include "Position.h"
 
+Position::Position() = default;
+
 Position::Position(const std::string& fen)
 {
-    for (Square square = A8; square <= H1; square++)
-    {
-        pieces[square] = NULL_PIECE;
-    }
     bool readingPieces = true;
     Square square = A8;
     for (const char letter : fen)
@@ -61,6 +59,7 @@ void Position::printPosition() const
             std::cout << " . ";
         }
     }
+    std::cout << "\n";
 }
 
 std::string Position::getUnicodePiece(const Piece piece) const
@@ -83,9 +82,9 @@ std::string Position::getUnicodePiece(const Piece piece) const
     }
 }
 
-Piece Position::getPieceByChar(const char piece) const
+Piece Position::getPieceByChar(const char letter) const
 {
-    switch (piece)
+    switch (letter)
     {
         case 'P': return WHITE_PAWN;
         case 'N': return WHITE_KNIGHT;

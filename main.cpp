@@ -1,8 +1,52 @@
 #include <iostream>
 #include "Position.h"
 
-int main() {
-    Position position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    position.printPosition();
-    return 0;
+int runCli()
+{
+    std::cout << "Welcome to KarlCLI, a command line interface for interacting with Karl.\n";
+    Position position;
+
+    std::string command;
+    while (std::getline(std::cin, command))
+    {
+
+        if (command == "quit")
+        {
+            return 0;
+        }
+        else if (command.substr(0, 12) == "loadposition")
+        {
+            std::string fen = command.substr(13, std::string::npos);
+            position = Position(fen);
+            std::cout << "successfully loaded position " << fen << ".\n";
+        }
+        else if (command == "showposition")
+        {
+            position.printPosition();
+        }
+
+    }
+}
+
+int main()
+{
+
+    while (true)
+    {
+        std::string command;
+        std::cin >> command;
+        if (command == "quit")
+        {
+            return 0;
+        }
+        else if (command == "uci")
+        {
+            // enter uci loop later
+            return 0;
+        }
+        else if (command == "cli")
+        {
+            return runCli();
+        }
+    }
 }

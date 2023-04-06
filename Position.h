@@ -7,15 +7,17 @@
 
 #include <string>
 #include <iostream>
+#include <vector>
 #include "Definitions.h"
 
 class Position
 {
 public:
-    Position(const std::string& fen);
+    Position();
+    explicit Position(const std::string& fen);
 
-    U64 bitboards[12];
-    Piece pieces[64];
+    std::vector<U64> bitboards = std::vector<U64>(12, EMPTY_BOARD);
+    std::vector<Piece> pieces = std::vector<Piece>(64, NULL_PIECE);
 
     void printPosition() const;
     void makeMove();
