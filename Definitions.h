@@ -6,10 +6,13 @@
 #define KARL_DEFINITIONS_H
 
 #include <string>
+#include <iostream>
+#include <vector>
 
 typedef unsigned long long U64;
 typedef int Piece;
 typedef int Square;
+typedef int Move;
 
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
@@ -30,6 +33,17 @@ const U64 FILE_MASKS[8] = {
         0x8080808080808080,
 };
 
+const U64 RANK_MASKS[8] = {
+        0x00000000000000ff,
+        0x000000000000ff00,
+        0x0000000000ff0000,
+        0x00000000ff000000,
+        0x000000ff00000000,
+        0x0000ff0000000000,
+        0x00ff000000000000,
+        0xff00000000000000
+};
+
 enum
 {
     A_FILE,
@@ -41,6 +55,19 @@ enum
     G_FILE,
     H_FILE
 };
+
+enum
+{
+    FIRST_RANK,
+    SECOND_RANK,
+    THIRD_RANK,
+    FOURTH_RANK,
+    FIFTH_RANK,
+    SIXTH_RANK,
+    SEVENTH_RANK,
+    EIGHTH_RANK
+};
+
 
 enum
 {
@@ -70,9 +97,87 @@ enum
     A1, B1, C1, D1, E1, F1, G1, H1
 };
 
+template<int distance>
+U64 north(U64 board)
+{
+    return board >> 8 * distance;
+}
+
+template<int distance>
+U64 east(U64 board)
+{
+    return board << distance;
+}
+
+template<int distance>
+U64 south(U64 board)
+{
+    return board << 8 * distance;
+}
+
+template<int distance>
+U64 west(U64 board)
+{
+    return board << distance;
+}
+
+template<int distance>
+Square north(Square square)
+{
+    return square - 8 * distance;
+}
+
+template<int distance>
+Square east(Square square)
+{
+    return square + distance;
+}
+
+template<int distance>
+Square south(Square square)
+{
+    return square + 8 * distance;
+}
+
+template<int distance>
+Square west(Square square)
+{
+    return square - distance;
+}
+
 inline U64 toBoard(Square square)
 {
     return (U64)1 << square;
+}
+
+inline int getRank(Square square)
+{
+    return 7 - square / 8;
+}
+
+inline int getFile(Square square)
+{
+    return square % 8;
+}
+
+inline void printBitboard(U64 board)
+{
+    for (Square square = A8; square <= H1; square++)
+    {
+        if (FILE_MASKS[A_FILE] & toBoard(square))
+        {
+            std::cout << "\n";
+        }
+        if (board & toBoard(square))
+        {
+            std::cout << " 1 ";
+        }
+        else
+        {
+            std::cout << " . ";
+        }
+    }
+    std::cout << "\n";
 }
 
 #endif //KARL_DEFINITIONS_H

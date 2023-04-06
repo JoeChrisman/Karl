@@ -1,5 +1,5 @@
 #include <iostream>
-#include "Position.h"
+#include "MoveGenerator.h"
 
 int runCli()
 {
@@ -18,6 +18,7 @@ int runCli()
         {
             std::string fen = command.substr(13, std::string::npos);
             position = Position(fen);
+            MoveGenerator moveGenerator(position);
             std::cout << "successfully loaded position " << fen << ".\n";
         }
         else if (command == "showposition")
@@ -30,7 +31,6 @@ int runCli()
 
 int main()
 {
-
     while (true)
     {
         std::string command;

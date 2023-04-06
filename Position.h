@@ -5,9 +5,6 @@
 #ifndef KARL_POSITION_H
 #define KARL_POSITION_H
 
-#include <string>
-#include <iostream>
-#include <vector>
 #include "Definitions.h"
 
 class Position
@@ -18,6 +15,8 @@ public:
 
     std::vector<U64> bitboards = std::vector<U64>(12, EMPTY_BOARD);
     std::vector<Piece> pieces = std::vector<Piece>(64, NULL_PIECE);
+
+    bool whiteToMove;
 
     void printPosition() const;
     void makeMove();
