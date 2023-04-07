@@ -63,7 +63,7 @@ void MoveGenerator::genKnightMoves()
         while (moves)
         {
             Square to = popFirstPiece(moves);
-            moveList.emplace_back(makeMove(
+            moveList.emplace_back(createMove(
                     NORMAL,
                     isWhite ? WHITE_KNIGHT : BLACK_KNIGHT,
                     position.pieces[to],

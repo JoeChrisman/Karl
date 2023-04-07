@@ -59,6 +59,27 @@ inline void Position::updateBitboards()
     emptySquares = ~occupiedSquares;
     whiteOrEmpty = whitePieces | emptySquares;
     blackOrEmpty = blackPieces | emptySquares;
+}
+
+void Position::makeMove(const Move move)
+{
+    Square from = getSquareFrom(move);
+    Square to = getSquareTo(move);
+    Piece moved = getPieceMoved(move);
+    Piece captured = getPieceCaptured(move);
+
+    pieces[from] = NULL_PIECE;
+    pieces[to] = moved;
+
+    bitboards[moved] ^= toBoard(from);
+    if (captured != NULL_PIECE)
+    {
+        bitboards[captured] ^= toBoard(to);
+    }
+}
+
+void Position::unMakeMove()
+{
 
 }
 

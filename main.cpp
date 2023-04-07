@@ -25,6 +25,24 @@ int runCli()
         {
             position.printPosition();
         }
+        else if (command.substr(0, 8) == "makemove")
+        {
+            std::string notation = command.substr(9, std::string::npos);
+            Square from = toSquare(notation.substr(0, 2));
+            Square to = toSquare(notation.substr(2, 2));
+            position.makeMove(createMove(
+                    NORMAL,
+                    position.pieces[from],
+                    position.pieces[to],
+                    from,
+                    to
+            ));
+        }
+        else
+        {
+            std::cout << "~ Unrecognized command.\n";
+            std::cout << "~ Run \"help\" for a list of commands.\n";
+        }
 
     }
 }

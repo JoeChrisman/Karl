@@ -28,7 +28,7 @@ public:
     bool whiteToMove;
 
     void printPosition() const;
-    void makeMove();
+    void makeMove(const Move move);
     void unMakeMove();
 
 private:

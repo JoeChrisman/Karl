@@ -18,10 +18,7 @@ typedef int Move;
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
 
-const Piece NULL_PIECE = -1;
-const Square NULL_SQUARE = -1;
-const Move NULL_MOVE = -1;
-
+const Move NULL_MOVE = 0;
 
 const U64 FILE_MASKS[8] = {
         0x0101010101010101,
@@ -83,7 +80,8 @@ enum
     BLACK_BISHOP,
     BLACK_ROOK,
     BLACK_QUEEN,
-    BLACK_KING
+    BLACK_KING,
+    NULL_PIECE
 };
 
 enum
@@ -95,7 +93,8 @@ enum
     A4, B4, C4, D4, E4, F4, G4, H4,
     A3, B3, C3, D3, E3, F3, G3, H3,
     A2, B2, C2, D2, E2, F2, G2, H2,
-    A1, B1, C1, D1, E1, F1, G1, H1
+    A1, B1, C1, D1, E1, F1, G1, H1,
+    NULL_SQUARE
 };
 
 enum MoveType
@@ -109,19 +108,18 @@ enum MoveType
     QUEEN_PROMOTION
 };
 
-inline Move makeMove(
+inline Move createMove(
         const MoveType moveType,
         const Piece moved,
         const Piece captured,
         const Square from,
         const Square to)
 {
-    int move = moveType << 29;
-    move |= moved << 25;
-    move |= captured << 21;
-    move |= from << 15;
-    move |= to << 9;
-    return move;
+    return  moveType << 29
+                | moved << 25
+                | captured << 21
+                | from << 15
+                | to << 9;
 }
 
 inline MoveType getMoveType(const Move move)
@@ -176,7 +174,7 @@ inline int toFile(const char letter)
 
 inline Square toSquare(const int rank, const int file)
 {
-    return (8 - rank) * 8 + file;
+    return (7 - rank) * 8 + file;
 }
 
 inline Square toSquare(const U64 board)
@@ -186,12 +184,8 @@ inline Square toSquare(const U64 board)
 
 inline Square toSquare(const std::string& notation)
 {
-    std::cout << "notation: " << notation << "\n";
     int rank = toRank(notation[1]);
     int file = toFile(notation[0]);
-    std::cout << "rank: " << rank << "\n";
-    std::cout << "file: " << file << "\n";
-
 
     return toSquare(rank, file);
 }
