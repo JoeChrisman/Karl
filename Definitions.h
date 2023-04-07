@@ -15,6 +15,10 @@ typedef int Piece;
 typedef int Square;
 typedef int Move;
 
+const std::string VERSION = "0.0.1 <beta>";
+const std::string INITIAL_WHITE_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const std::string INITIAL_BLACK_FEN = "RNBKQBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbkqbnr w - - 0 1";
+
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
 
