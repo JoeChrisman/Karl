@@ -11,10 +11,10 @@ class MoveGenerator
 {
 public:
 
-    MoveGenerator();
+    MoveGenerator() = default;
     explicit MoveGenerator(Position& position);
 
-    template<bool quiets>
+    template<const bool quiets>
     void generateMoves();
 
     std::vector<Move> moveList;
@@ -32,37 +32,37 @@ private:
     U64 cardinalPins;
     U64 ordinalPins;
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void generateMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genPawnMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genKnightMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genBishopMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genRookMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genQueenMoves();
 
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void genKingMoves();
 
-    template<bool isWhite>
-    void genPromotions(Square from, Square to, Piece captured);
+    template<const bool isWhite>
+    void genPromotions(const Square from, const Square to, const Piece captured);
 
-    template<bool isWhite>
+    template<const bool isWhite>
     void updateSafeSquares();
 
-    template<bool isWhite>
+    template<const bool isWhite>
     void updateResolverSquares();
 
-    template<bool isWhite, bool isCardinal>
+    template<const bool isWhite, const bool isCardinal>
     void updatePins();
 
 

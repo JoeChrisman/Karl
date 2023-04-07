@@ -8,6 +8,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <x86intrin.h>
 
 typedef unsigned long long U64;
 typedef int Piece;
@@ -17,9 +18,9 @@ typedef int Move;
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
 
-
 const Piece NULL_PIECE = -1;
 const Square NULL_SQUARE = -1;
+const Move NULL_MOVE = -1;
 
 
 const U64 FILE_MASKS[8] = {
@@ -97,70 +98,160 @@ enum
     A1, B1, C1, D1, E1, F1, G1, H1
 };
 
+enum MoveType
+{
+    NORMAL,
+    CASTLE,
+    EN_PASSANT,
+    KNIGHT_PROMOTION,
+    BISHOP_PROMOTION,
+    ROOK_PROMOTION,
+    QUEEN_PROMOTION
+};
+
+inline Move makeMove(
+        const MoveType moveType,
+        const Piece moved,
+        const Piece captured,
+        const Square from,
+        const Square to)
+{
+    int move = moveType << 29;
+    move |= moved << 25;
+    move |= captured << 21;
+    move |= from << 15;
+    move |= to << 9;
+    return move;
+}
+
+inline MoveType getMoveType(const Move move)
+{
+    return (MoveType)((move & 0b11100000000000000000000000000000) >> 29);
+}
+
+inline Piece getPieceMoved(const Move move)
+{
+    return (Piece)((move & 0b00011110000000000000000000000000) >> 25);
+}
+
+inline Piece getPieceCaptured(const Move move)
+{
+    return (Piece)((move & 0b00000001111000000000000000000000) >> 21);
+}
+
+inline Square getSquareFrom(const Move move)
+{
+    return (Square)((move & 0b00000000000111111000000000000000) >> 15);
+}
+
+inline Square getSquareTo(const Move move)
+{
+    return (Square)((move & 0b00000000000000000111111000000000) >> 9);
+}
+
+inline U64 toBoard(const Square square)
+{
+    return (U64)1 << square;
+}
+
+inline int getRank(const Square square)
+{
+    return 7 - square / 8;
+}
+
+inline int getFile(const Square square)
+{
+    return square % 8;
+}
+
+inline int toRank(const char letter)
+{
+    return letter - '0' - 1;
+}
+
+inline int toFile(const char letter)
+{
+    return tolower(letter) - 'a';
+}
+
+inline Square toSquare(const int rank, const int file)
+{
+    return (8 - rank) * 8 + file;
+}
+
+inline Square toSquare(const U64 board)
+{
+    return (Square)_mm_tzcnt_64(board);
+}
+
+inline Square toSquare(const std::string& notation)
+{
+    std::cout << "notation: " << notation << "\n";
+    int rank = toRank(notation[1]);
+    int file = toFile(notation[0]);
+    std::cout << "rank: " << rank << "\n";
+    std::cout << "file: " << file << "\n";
+
+
+    return toSquare(rank, file);
+}
+
+inline Square popFirstPiece(U64& board)
+{
+    Square piece = toSquare(board);
+    board ^= toBoard(piece);
+    return piece;
+}
+
 template<int distance>
-U64 north(U64 board)
+U64 north(const U64 board)
 {
     return board >> 8 * distance;
 }
 
 template<int distance>
-U64 east(U64 board)
+U64 east(const U64 board)
 {
     return board << distance;
 }
 
 template<int distance>
-U64 south(U64 board)
+U64 south(const U64 board)
 {
     return board << 8 * distance;
 }
 
 template<int distance>
-U64 west(U64 board)
+U64 west(const U64 board)
 {
     return board << distance;
 }
 
 template<int distance>
-Square north(Square square)
+Square north(const Square square)
 {
     return square - 8 * distance;
 }
 
 template<int distance>
-Square east(Square square)
+Square east(const Square square)
 {
     return square + distance;
 }
 
 template<int distance>
-Square south(Square square)
+Square south(const Square square)
 {
     return square + 8 * distance;
 }
 
 template<int distance>
-Square west(Square square)
+Square west(const Square square)
 {
     return square - distance;
 }
 
-inline U64 toBoard(Square square)
-{
-    return (U64)1 << square;
-}
-
-inline int getRank(Square square)
-{
-    return 7 - square / 8;
-}
-
-inline int getFile(Square square)
-{
-    return square % 8;
-}
-
-inline void printBitboard(U64 board)
+inline void printBitboard(const U64 board)
 {
     for (Square square = A8; square <= H1; square++)
     {

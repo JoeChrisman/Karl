@@ -4,43 +4,94 @@
 
 #include "MoveGenerator.h"
 
-MoveGenerator::MoveGenerator() = default;
-
 MoveGenerator::MoveGenerator(Position& _position) :
         position(_position)
 {
-    this->initKingMoves();
-    this->initKnightMoves();
+    initKingMoves();
+    initKnightMoves();
 }
 
 template<bool quiets>
 void MoveGenerator::generateMoves()
 {
-    this->moveList.clear();
+    moveList.clear();
     if (position.whiteToMove)
     {
-        this->generateMoves<true, quiets>();
+        generateMoves<true, quiets>();
     }
     else
     {
-        this->generateMoves<false, quiets>();
+        generateMoves<false, quiets>();
     }
 }
 
 template<bool isWhite, bool quiets>
 void MoveGenerator::generateMoves()
 {
-    this->updateSafeSquares<isWhite>();
-    this->updateResolverSquares<isWhite>();
-    this->updatePins<isWhite, true>();
-    this->updatePins<isWhite, false>();
+    updateSafeSquares<isWhite>();
+    updateResolverSquares<isWhite>();
+    updatePins<isWhite, true>();
+    updatePins<isWhite, false>();
 
-    this->genPawnMoves<isWhite, quiets>();
-    this->genKnightMoves<isWhite, quiets>();
-    this->genKingMoves<isWhite, quiets>();
-    this->genRookMoves<isWhite, quiets>();
-    this->genBishopMoves<isWhite, quiets>();
-    this->genQueenMoves<isWhite, quiets>();
+    //genPawnMoves<isWhite, quiets>();
+    genKnightMoves<isWhite, quiets>();
+    //genKingMoves<isWhite, quiets>();
+    //genRookMoves<isWhite, quiets>();
+    //genBishopMoves<isWhite, quiets>();
+    //genQueenMoves<isWhite, quiets>();
+}
+
+template<const bool isWhite, const bool quiets>
+void MoveGenerator::genKnightMoves()
+{
+    U64 knights = position.bitboards[isWhite ? WHITE_KNIGHT : BLACK_KNIGHT];
+    while (knights)
+    {
+        Square from = popFirstPiece(knights);
+        U64 moves = knightMoves[from];
+        if (quiets)
+        {
+            // quiet moves and captures
+            moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
+        }
+        else
+        {
+            // captures only
+            moves &= (isWhite ? position.blackPieces : position.whitePieces);
+        }
+
+        while (moves)
+        {
+            Square to = popFirstPiece(moves);
+            moveList.emplace_back(makeMove(
+                    NORMAL,
+                    isWhite ? WHITE_KNIGHT : BLACK_KNIGHT,
+                    position.pieces[to],
+                    from,
+                    to
+            ));
+        }
+    }
+}
+
+
+
+template<bool isWhite>
+void MoveGenerator::updateSafeSquares()
+{
+
+}
+
+template<bool isWhite>
+void MoveGenerator::updateResolverSquares()
+{
+
+}
+
+template<bool isWhite, bool isCardinal>
+void MoveGenerator::updatePins()
+{
+
 }
 
 void MoveGenerator::initKnightMoves()

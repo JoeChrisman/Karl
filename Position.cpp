@@ -4,8 +4,6 @@
 
 #include "Position.h"
 
-Position::Position() = default;
-
 Position::Position(const std::string& fen)
 {
     bool readingPieces = true;
@@ -20,12 +18,12 @@ Position::Position(const std::string& fen)
             }
             else
             {
-                Piece piece = this->getPieceByChar(letter);
+                Piece piece = getPieceByChar(letter);
 
                 if (piece != NULL_PIECE)
                 {
-                    this->pieces[square] = piece;
-                    this->bitboards[piece] |= toBoard(square++);
+                    pieces[square] = piece;
+                    bitboards[piece] |= toBoard(square++);
                 }
                 else if (isdigit(letter))
                 {
@@ -41,6 +39,29 @@ Position::Position(const std::string& fen)
     }
 }
 
+inline void Position::updateBitboards()
+{
+    whitePieces = pieces[WHITE_PAWN] |
+                        pieces[WHITE_KNIGHT] |
+                        pieces[WHITE_BISHOP] |
+                        pieces[WHITE_ROOK] |
+                        pieces[WHITE_QUEEN] |
+                        pieces[WHITE_KING];
+
+    blackPieces = pieces[BLACK_PAWN] |
+                        pieces[BLACK_KNIGHT] |
+                        pieces[BLACK_BISHOP] |
+                        pieces[BLACK_ROOK] |
+                        pieces[BLACK_QUEEN] |
+                        pieces[BLACK_KING];
+
+    occupiedSquares = whitePieces | blackPieces;
+    emptySquares = ~occupiedSquares;
+    whiteOrEmpty = whitePieces | emptySquares;
+    blackOrEmpty = blackPieces | emptySquares;
+
+}
+
 void Position::printPosition() const
 {
     for (Square square = A8; square <= H1; square++)
@@ -49,10 +70,10 @@ void Position::printPosition() const
         {
             std::cout << "\n";
         }
-        Piece piece = this->pieces[square];
+        Piece piece = pieces[square];
         if (piece != NULL_PIECE)
         {
-            std::cout << " " << this->getUnicodePiece(piece) << " ";
+            std::cout << " " << getUnicodePiece(piece) << " ";
         }
         else
         {

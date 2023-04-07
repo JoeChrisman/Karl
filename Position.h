@@ -10,11 +10,20 @@
 class Position
 {
 public:
-    Position();
+    Position() = default;
     explicit Position(const std::string& fen);
 
     std::vector<U64> bitboards = std::vector<U64>(12, EMPTY_BOARD);
     std::vector<Piece> pieces = std::vector<Piece>(64, NULL_PIECE);
+
+    U64 emptySquares;
+    U64 occupiedSquares;
+    U64 whitePieces;
+    U64 blackPieces;
+    U64 whiteOrEmpty;
+    U64 blackOrEmpty;
+
+    inline void updateBitboards();
 
     bool whiteToMove;
 
