@@ -3,4 +3,4 @@ project(Karl)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Karl main.cpp Position.cpp Position.h Definitions.h MoveGenerator.cpp MoveGenerator.h)
+add_executable(Karl main.cpp Position.cpp Position.h Definitions.h MoveGenerator.cpp MoveGenerator.h Cli.cpp Cli.h)

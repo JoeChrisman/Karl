@@ -25,9 +25,9 @@ public:
 
     inline void updateBitboards();
 
-    bool whiteToMove;
+    bool isWhiteToMove = true;
 
-    void printPosition() const;
+    void printPosition(bool isWhiteOnBottom) const;
     void makeMove(const Move move);
     void unMakeMove();
 

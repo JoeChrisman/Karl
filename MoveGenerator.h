@@ -14,8 +14,19 @@ public:
     MoveGenerator() = default;
     explicit MoveGenerator(Position& position);
 
-    template<const bool quiets>
-    void generateMoves();
+    template<bool quiets>
+    void generateMoves()
+    {
+        moveList.clear();
+        if (position.isWhiteToMove)
+        {
+            generateMoves<true, quiets>();
+        }
+        else
+        {
+            generateMoves<false, quiets>();
+        }
+    }
 
     std::vector<Move> moveList;
 private:
@@ -32,14 +43,59 @@ private:
     U64 cardinalPins;
     U64 ordinalPins;
 
-    template<const bool isWhite, const bool quiets>
-    void generateMoves();
+
+    template<bool isWhite, bool quiets>
+    void generateMoves()
+    {
+        //updateSafeSquares<isWhite>();
+        //updateResolverSquares<isWhite>();
+        //updatePins<isWhite, true>();
+        //updatePins<isWhite, false>();
+
+        //genPawnMoves<isWhite, quiets>();
+        genKnightMoves<isWhite, quiets>();
+        //genKingMoves<isWhite, quiets>();
+        //genRookMoves<isWhite, quiets>();
+        //genBishopMoves<isWhite, quiets>();
+        //genQueenMoves<isWhite, quiets>();
+    }
 
     template<const bool isWhite, const bool quiets>
     void genPawnMoves();
 
+
     template<const bool isWhite, const bool quiets>
-    void genKnightMoves();
+    void genKnightMoves()
+    {
+        U64 knights = position.bitboards[isWhite ? WHITE_KNIGHT : BLACK_KNIGHT];
+        while (knights)
+        {
+            Square from = popFirstPiece(knights);
+            U64 moves = knightMoves[from];
+            if (quiets)
+            {
+                // quiet moves and captures
+                moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
+            }
+            else
+            {
+                // captures only
+                moves &= (isWhite ? position.blackPieces : position.whitePieces);
+            }
+
+            while (moves)
+            {
+                Square to = popFirstPiece(moves);
+                moveList.emplace_back(createMove(
+                        NORMAL,
+                        isWhite ? WHITE_KNIGHT : BLACK_KNIGHT,
+                        position.pieces[to],
+                        from,
+                        to
+                ));
+            }
+        }
+    }
 
     template<const bool isWhite, const bool quiets>
     void genBishopMoves();

@@ -16,8 +16,7 @@ typedef int Square;
 typedef int Move;
 
 const std::string VERSION = "0.0.1 <beta>";
-const std::string INITIAL_WHITE_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const std::string INITIAL_BLACK_FEN = "RNBKQBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbkqbnr w - - 0 1";
+const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
@@ -70,7 +69,6 @@ enum
     EIGHTH_RANK
 };
 
-
 enum
 {
     WHITE_PAWN,
@@ -87,6 +85,16 @@ enum
     BLACK_KING,
     NULL_PIECE
 };
+
+inline bool isWhite(Piece piece)
+{
+    return piece < 6;
+}
+
+inline bool isBlack(Piece piece)
+{
+    return !isWhite(piece) && piece != NULL_PIECE;
+}
 
 enum
 {
@@ -151,7 +159,7 @@ inline Square getSquareTo(const Move move)
     return (Square)((move & 0b00000000000000000111111000000000) >> 9);
 }
 
-inline U64 toBoard(const Square square)
+inline U64 getBoard(const Square square)
 {
     return (U64)1 << square;
 }
@@ -166,38 +174,20 @@ inline int getFile(const Square square)
     return square % 8;
 }
 
-inline int toRank(const char letter)
-{
-    return letter - '0' - 1;
-}
-
-inline int toFile(const char letter)
-{
-    return tolower(letter) - 'a';
-}
-
-inline Square toSquare(const int rank, const int file)
+inline Square getSquare(const int rank, const int file)
 {
     return (7 - rank) * 8 + file;
 }
 
-inline Square toSquare(const U64 board)
+inline Square getSquare(const U64 board)
 {
     return (Square)_mm_tzcnt_64(board);
 }
 
-inline Square toSquare(const std::string& notation)
-{
-    int rank = toRank(notation[1]);
-    int file = toFile(notation[0]);
-
-    return toSquare(rank, file);
-}
-
 inline Square popFirstPiece(U64& board)
 {
-    Square piece = toSquare(board);
-    board ^= toBoard(piece);
+    Square piece = getSquare(board);
+    board ^= getBoard(piece);
     return piece;
 }
 
@@ -253,11 +243,11 @@ inline void printBitboard(const U64 board)
 {
     for (Square square = A8; square <= H1; square++)
     {
-        if (FILE_MASKS[A_FILE] & toBoard(square))
+        if (FILE_MASKS[A_FILE] & getBoard(square))
         {
             std::cout << "\n";
         }
-        if (board & toBoard(square))
+        if (board & getBoard(square))
         {
             std::cout << " 1 ";
         }

@@ -23,7 +23,16 @@ Position::Position(const std::string& fen)
                 if (piece != NULL_PIECE)
                 {
                     pieces[square] = piece;
-                    bitboards[piece] |= toBoard(square++);
+                    U64 board = getBoard(square++);
+                    bitboards[piece] |= board;
+                    if (isWhite(piece))
+                    {
+                        whitePieces |= board;
+                    }
+                    else if (isBlack(piece))
+                    {
+                        blackPieces |= board;
+                    }
                 }
                 else if (isdigit(letter))
                 {
@@ -37,6 +46,10 @@ Position::Position(const std::string& fen)
             // read position rights...
         }
     }
+    occupiedSquares = whitePieces | blackPieces;
+    emptySquares = ~occupiedSquares;
+    whiteOrEmpty = whitePieces | emptySquares;
+    blackOrEmpty = blackPieces | emptySquares;
 }
 
 inline void Position::updateBitboards()
@@ -71,11 +84,13 @@ void Position::makeMove(const Move move)
     pieces[from] = NULL_PIECE;
     pieces[to] = moved;
 
-    bitboards[moved] ^= toBoard(from);
+    bitboards[moved] ^= getBoard(from);
     if (captured != NULL_PIECE)
     {
-        bitboards[captured] ^= toBoard(to);
+        bitboards[captured] ^= getBoard(to);
     }
+
+    isWhiteToMove = !isWhiteToMove;
 }
 
 void Position::unMakeMove()
@@ -83,13 +98,17 @@ void Position::unMakeMove()
 
 }
 
-void Position::printPosition() const
+void Position::printPosition(bool isWhiteOnBottom) const
 {
-    for (Square square = A8; square <= H1; square++)
+    char rank = isWhiteOnBottom ? '8' : '1';
+    for (Square square = isWhiteOnBottom ? A8 : H1;
+            square >= A8 && square <= H1;
+            isWhiteOnBottom ? square++ : square--)
     {
-        if (toBoard(square) & FILE_MASKS[A_FILE])
+        if (getBoard(square) & FILE_MASKS[isWhiteOnBottom ? A_FILE : H_FILE])
         {
-            std::cout << "\n";
+            std::cout << "\n" << rank << "   ";
+            rank += isWhiteOnBottom ? -1 : 1;
         }
         Piece piece = pieces[square];
         if (piece != NULL_PIECE)
@@ -101,7 +120,15 @@ void Position::printPosition() const
             std::cout << " . ";
         }
     }
+    std::cout << "\n\n    ";
+    for (char file = isWhiteOnBottom ? 'a' : 'h';
+        file >= 'a' && file <= 'h';
+        isWhiteOnBottom ? file++ : file--)
+    {
+        std::cout << " " << file << " ";
+    }
     std::cout << "\n";
+
 }
 
 std::string Position::getUnicodePiece(const Piece piece) const
