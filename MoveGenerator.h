@@ -50,7 +50,7 @@ private:
         //updatePins<isWhite, false>();
         genPawnMoves<isWhite, quiets>();
         genKnightMoves<isWhite, quiets>();
-        //genKingMoves<isWhite, quiets>();
+        genKingMoves<isWhite, quiets>();
         //genRookMoves<isWhite, quiets>();
         //genBishopMoves<isWhite, quiets>();
         //genQueenMoves<isWhite, quiets>();
@@ -59,32 +59,26 @@ private:
     template<bool isWhite, bool quiets>
     void genPawnMoves()
     {
+        constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
         constexpr U64 leftCaptureMask = ~FILE_MASKS[isWhite ? A_FILE : H_FILE];
         constexpr U64 rightCaptureMask = ~FILE_MASKS[isWhite ? H_FILE : F_FILE];
         constexpr U64 promotionMask = RANK_MASKS[isWhite ? EIGHTH_RANK : FIRST_RANK];
         constexpr U64 notPromotionMask = ~promotionMask;
 
-        U64 pawns = position.bitboards[isWhite ? WHITE_PAWN : BLACK_PAWN];
+        const U64 pawns = position.bitboards[pieceMoving];
 
-        // calculate one square pawn pushes
         U64 pushed1 = (isWhite ? north(pawns) : south(pawns));
 
-        // calculate left captures
         U64 leftCaptures = (isWhite ? west(pushed1 & leftCaptureMask)
                                    : east(pushed1 & leftCaptureMask));
-        // calculate right captures
         U64 rightCaptures = (isWhite ? east(pushed1 & rightCaptureMask)
                                     : west(pushed1 & rightCaptureMask));
-
-        // we can only capture if there is a piece to capture
         leftCaptures &= (isWhite ? position.blackPieces : position.whitePieces);
         rightCaptures &= (isWhite ? position.blackPieces : position.whitePieces);
 
-        // calculate promotions by capturing
         uint64_t rightCapturePromotions = rightCaptures & promotionMask;
         uint64_t leftCapturePromotions = leftCaptures & promotionMask;
 
-        // exclude promotions by capturing from normal captures
         rightCaptures &= notPromotionMask;
         leftCaptures &= notPromotionMask;
 
@@ -94,7 +88,7 @@ private:
             Square from = isWhite ? southEast(to) : northWest(to);
             moveList.emplace_back(createMove(
                     NORMAL,
-                    isWhite ? WHITE_PAWN : BLACK_PAWN,
+                    pieceMoving,
                     position.pieces[to],
                     from,
                     to
@@ -106,7 +100,7 @@ private:
             Square from = isWhite ? southWest(to) : northEast(to);
             moveList.emplace_back(createMove(
                     NORMAL,
-                    isWhite ? WHITE_PAWN : BLACK_PAWN,
+                    pieceMoving,
                     position.pieces[to],
                     from,
                     to
@@ -125,12 +119,10 @@ private:
             genPromotions<isWhite>(from, to, position.pieces[to]);
         }
 
-        // we can only push onto empty squares
         pushed1 &= position.emptySquares;
-        // calculate promotions by pawn push
-        uint64_t pushPromotions = pushed1 & promotionMask;
-        // exclude promotions from pawn pushes
+        U64 pushPromotions = pushed1 & promotionMask;
         pushed1 &= notPromotionMask;
+
         while (pushPromotions)
         {
             Square to = popFirstPiece(pushPromotions);
@@ -155,7 +147,7 @@ private:
                 Square from = isWhite ? south(to) : north(to);
                 moveList.emplace_back(createMove(
                          NORMAL,
-                         isWhite ? WHITE_PAWN : BLACK_PAWN,
+                         pieceMoving,
                          NULL_PIECE,
                          from,
                          to
@@ -168,7 +160,7 @@ private:
                 Square from = isWhite ? south<2>(to) : north<2>(to);
                 moveList.emplace_back(createMove(
                         NORMAL,
-                        isWhite ? WHITE_PAWN : BLACK_PAWN,
+                        pieceMoving,
                         NULL_PIECE,
                         from,
                         to
@@ -196,7 +188,9 @@ private:
     template<bool isWhite, bool quiets>
     void genKnightMoves()
     {
-        U64 knights = position.bitboards[isWhite ? WHITE_KNIGHT : BLACK_KNIGHT];
+        constexpr Piece pieceMoving = isWhite ? WHITE_KNIGHT : BLACK_KNIGHT;
+
+        U64 knights = position.bitboards[pieceMoving];
         while (knights)
         {
             Square from = popFirstPiece(knights);
@@ -217,7 +211,7 @@ private:
                 Square to = popFirstPiece(moves);
                 moveList.emplace_back(createMove(
                         NORMAL,
-                        isWhite ? WHITE_KNIGHT : BLACK_KNIGHT,
+                        pieceMoving,
                         position.pieces[to],
                         from,
                         to
@@ -237,7 +231,31 @@ private:
     void genQueenMoves();
 
     template<bool isWhite, bool quiets>
-    void genKingMoves();
+    void genKingMoves()
+    {
+        Square from = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
+        U64 moves = kingMoves[from];
+        if (quiets)
+        {
+            moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
+        }
+        else
+        {
+            moves &= (isWhite ? position.blackPieces : position.whitePieces);
+        }
+
+        while (moves)
+        {
+            Square to = popFirstPiece(moves);
+            moveList.push_back(createMove(
+                    NORMAL,
+                    isWhite ? WHITE_KING : BLACK_KING,
+                    position.pieces[to],
+                    from,
+                    to
+            ));
+        }
+    }
 
     template<bool isWhite>
     void updateSafeSquares();
