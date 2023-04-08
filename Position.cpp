@@ -25,14 +25,6 @@ Position::Position(const std::string& fen)
                     pieces[square] = piece;
                     U64 board = getBoard(square++);
                     bitboards[piece] |= board;
-                    if (isWhite(piece))
-                    {
-                        whitePieces |= board;
-                    }
-                    else if (isBlack(piece))
-                    {
-                        blackPieces |= board;
-                    }
                 }
                 else if (isdigit(letter))
                 {
@@ -46,27 +38,24 @@ Position::Position(const std::string& fen)
             // read position rights...
         }
     }
-    occupiedSquares = whitePieces | blackPieces;
-    emptySquares = ~occupiedSquares;
-    whiteOrEmpty = whitePieces | emptySquares;
-    blackOrEmpty = blackPieces | emptySquares;
+    updateBitboards();
 }
 
 inline void Position::updateBitboards()
 {
-    whitePieces = pieces[WHITE_PAWN] |
-                        pieces[WHITE_KNIGHT] |
-                        pieces[WHITE_BISHOP] |
-                        pieces[WHITE_ROOK] |
-                        pieces[WHITE_QUEEN] |
-                        pieces[WHITE_KING];
+    whitePieces = bitboards[WHITE_PAWN] |
+                  bitboards[WHITE_KNIGHT] |
+                  bitboards[WHITE_BISHOP] |
+                  bitboards[WHITE_ROOK] |
+                  bitboards[WHITE_QUEEN] |
+                  bitboards[WHITE_KING];
 
-    blackPieces = pieces[BLACK_PAWN] |
-                        pieces[BLACK_KNIGHT] |
-                        pieces[BLACK_BISHOP] |
-                        pieces[BLACK_ROOK] |
-                        pieces[BLACK_QUEEN] |
-                        pieces[BLACK_KING];
+    blackPieces = bitboards[BLACK_PAWN] |
+                  bitboards[BLACK_KNIGHT] |
+                  bitboards[BLACK_BISHOP] |
+                  bitboards[BLACK_ROOK] |
+                  bitboards[BLACK_QUEEN] |
+                  bitboards[BLACK_KING];
 
     occupiedSquares = whitePieces | blackPieces;
     emptySquares = ~occupiedSquares;
@@ -85,12 +74,14 @@ void Position::makeMove(const Move move)
     pieces[to] = moved;
 
     bitboards[moved] ^= getBoard(from);
+    bitboards[moved] |= getBoard(to);
     if (captured != NULL_PIECE)
     {
         bitboards[captured] ^= getBoard(to);
     }
 
     isWhiteToMove = !isWhiteToMove;
+    updateBitboards();
 }
 
 void Position::unMakeMove()

@@ -21,33 +21,33 @@ void MoveGenerator::initKnightMoves()
         {
             if (file > A_FILE)
             {
-                knightMoves[square] |= getBoard(north<2>(west<1>(square)));
+                knightMoves[square] |= getBoard(north<2>(west(square)));
             }
             if (file < H_FILE)
             {
-                knightMoves[square] |= getBoard(north<2>(east<1>(square)));
+                knightMoves[square] |= getBoard(north<2>(east(square)));
             }
         }
         if (file + 2 <= H_FILE)
         {
             if (rank < EIGHTH_RANK)
             {
-                knightMoves[square] |= getBoard(east<2>(north<1>(square)));
+                knightMoves[square] |= getBoard(east<2>(north(square)));
             }
             if (rank > FIRST_RANK)
             {
-                knightMoves[square] |= getBoard(east<2>(south<1>(square)));
+                knightMoves[square] |= getBoard(east<2>(south(square)));
             }
         }
         if (rank - 2 >= FIRST_RANK)
         {
             if (file > A_FILE)
             {
-                knightMoves[square] |= getBoard(south<2>(west<1>(square)));
+                knightMoves[square] |= getBoard(south<2>(west(square)));
             }
             if (file < H_FILE)
             {
-                knightMoves[square] |= getBoard(south<2>(east<1>(square)));
+                knightMoves[square] |= getBoard(south<2>(east(square)));
 
             }
         }
@@ -55,16 +55,15 @@ void MoveGenerator::initKnightMoves()
         {
             if (rank < EIGHTH_RANK)
             {
-                knightMoves[square] |= getBoard(west<2>(north<1>(square)));
+                knightMoves[square] |= getBoard(west<2>(north(square)));
             }
             if (rank > FIRST_RANK)
             {
-                knightMoves[square] |= getBoard(west<2>(south<1>(square)));
+                knightMoves[square] |= getBoard(west<2>(south(square)));
             }
         }
     }
 }
-
 
 void MoveGenerator::initKingMoves()
 {
@@ -76,32 +75,32 @@ void MoveGenerator::initKingMoves()
         {
             if (file > A_FILE)
             {
-                kingMoves[square] |= getBoard(north<1>(west<1>(square)));
+                kingMoves[square] |= getBoard(northWest(square));
             }
-            kingMoves[square] |= getBoard(north<1>(square));
+            kingMoves[square] |= getBoard(north(square));
             if (file < H_FILE)
             {
-                kingMoves[square] |= getBoard(north<1>(east<1>(square)));
+                kingMoves[square] |= getBoard(northEast(square));
             }
         }
         if (file > A_FILE)
         {
-            kingMoves[square] |= getBoard(west<1>(square));
+            kingMoves[square] |= getBoard(west(square));
         }
         if (file < H_FILE)
         {
-            kingMoves[square] |= getBoard(east<1>(square));
+            kingMoves[square] |= getBoard(east(square));
         }
         if (rank > FIRST_RANK)
         {
             if (file > A_FILE)
             {
-                kingMoves[square] |= getBoard(south<1>(west<1>(square)));
+                kingMoves[square] |= getBoard(southWest(square));
             }
-            kingMoves[square] |= getBoard(south<1>(square));
+            kingMoves[square] |= getBoard(south(square));
             if (file < H_FILE)
             {
-                kingMoves[square] |= getBoard(south<1>(east<1>(square)));
+                kingMoves[square] |= getBoard(southEast(square));
             }
         }
     }

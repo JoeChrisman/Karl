@@ -15,15 +15,16 @@ typedef int Piece;
 typedef int Square;
 typedef int Move;
 
-const std::string VERSION = "0.0.1 <beta>";
-const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+static const std::string VERSION = "0.0.1 <beta>";
+static const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-const U64 EMPTY_BOARD = 0;
-const U64 FULL_BOARD = ~0;
+static constexpr U64 EMPTY_BOARD = 0;
+static constexpr U64 FULL_BOARD = ~0;
 
-const Move NULL_MOVE = 0;
+static constexpr Move NULL_MOVE = 0;
+static constexpr Square NULL_SQUARE = -1;
 
-const U64 FILE_MASKS[8] = {
+static constexpr U64 FILE_MASKS[8] = {
         0x0101010101010101,
         0x0202020202020202,
         0x0404040404040404,
@@ -34,15 +35,15 @@ const U64 FILE_MASKS[8] = {
         0x8080808080808080,
 };
 
-const U64 RANK_MASKS[8] = {
-        0x00000000000000ff,
-        0x000000000000ff00,
-        0x0000000000ff0000,
-        0x00000000ff000000,
-        0x000000ff00000000,
-        0x0000ff0000000000,
+static constexpr U64 RANK_MASKS[8] = {
+        0xff00000000000000,
         0x00ff000000000000,
-        0xff00000000000000
+        0x0000ff0000000000,
+        0x000000ff00000000,
+        0x00000000ff000000,
+        0x0000000000ff0000,
+        0x000000000000ff00,
+        0x00000000000000ff
 };
 
 enum
@@ -105,8 +106,7 @@ enum
     A4, B4, C4, D4, E4, F4, G4, H4,
     A3, B3, C3, D3, E3, F3, G3, H3,
     A2, B2, C2, D2, E2, F2, G2, H2,
-    A1, B1, C1, D1, E1, F1, G1, H1,
-    NULL_SQUARE
+    A1, B1, C1, D1, E1, F1, G1, H1
 };
 
 enum MoveType
@@ -191,52 +191,103 @@ inline Square popFirstPiece(U64& board)
     return piece;
 }
 
-template<int distance>
+template<int distance = 1>
 U64 north(const U64 board)
 {
     return board >> 8 * distance;
 }
 
-template<int distance>
+template<int distance = 1>
 U64 east(const U64 board)
 {
     return board << distance;
 }
 
-template<int distance>
+template<int distance = 1>
 U64 south(const U64 board)
 {
     return board << 8 * distance;
 }
 
-template<int distance>
+template<int distance = 1>
 U64 west(const U64 board)
 {
-    return board << distance;
+    return board >> distance;
 }
 
-template<int distance>
+
+template<int distance = 1>
+U64 northEast(const U64 board)
+{
+    return board >> 7 * distance;
+}
+
+template<int distance = 1>
+U64 northWest(const U64 board)
+{
+    return board >> 9 * distance;
+}
+
+template<int distance = 1>
+U64 southEast(const U64 board)
+{
+    return board << 9 * distance;
+}
+
+template<int distance = 1>
+U64 southWest(const U64 board)
+{
+    return board << 7 * distance;
+}
+
+template<int distance = 1>
 Square north(const Square square)
 {
     return square - 8 * distance;
 }
 
-template<int distance>
+template<int distance = 1>
 Square east(const Square square)
 {
     return square + distance;
 }
 
-template<int distance>
+template<int distance = 1>
 Square south(const Square square)
 {
     return square + 8 * distance;
 }
 
-template<int distance>
+template<int distance = 1>
 Square west(const Square square)
 {
     return square - distance;
+}
+
+template<int distance = 1>
+Square northEast(const Square square)
+{
+    return square - 7 * distance;
+}
+
+
+template<int distance = 1>
+Square southEast(const Square square)
+{
+    return square + 9 * distance;
+}
+
+
+template<int distance = 1>
+Square southWest(const Square square)
+{
+    return square + 7 * distance;
+}
+
+template<int distance = 1>
+Square northWest(const Square square)
+{
+    return square - 9 * distance;
 }
 
 inline void printBitboard(const U64 board)
