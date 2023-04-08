@@ -14,7 +14,7 @@ public:
     MoveGenerator() = default;
     explicit MoveGenerator(Position& position);
 
-    template<bool quiets>
+    template<const bool quiets>
     void generateMoves()
     {
         moveList.clear();
@@ -43,15 +43,13 @@ private:
     U64 cardinalPins;
     U64 ordinalPins;
 
-
-    template<bool isWhite, bool quiets>
+    template<const bool isWhite, const bool quiets>
     void generateMoves()
     {
         //updateSafeSquares<isWhite>();
         //updateResolverSquares<isWhite>();
         //updatePins<isWhite, true>();
         //updatePins<isWhite, false>();
-
         //genPawnMoves<isWhite, quiets>();
         genKnightMoves<isWhite, quiets>();
         //genKingMoves<isWhite, quiets>();
@@ -72,7 +70,7 @@ private:
         {
             Square from = popFirstPiece(knights);
             U64 moves = knightMoves[from];
-            if (quiets)
+            if constexpr (quiets)
             {
                 // quiet moves and captures
                 moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
@@ -96,6 +94,7 @@ private:
             }
         }
     }
+
 
     template<const bool isWhite, const bool quiets>
     void genBishopMoves();

@@ -10,12 +10,12 @@ MoveGenerator* Cli::moveGenerator = nullptr;
 
 int Cli::notationToFile(const char fileChar)
 {
-    return tolower(fileChar) - 'a';
+    return (int)(fileChar - 'a');
 }
 
 int Cli::notationToRank(const char rankChar)
 {
-    return rankChar - '1';
+    return (int)(rankChar - '1');
 }
 
 char Cli::fileToNotation(const int file)
@@ -30,8 +30,8 @@ char Cli::rankToNotation(const int rank)
 
 Square Cli::notationToSquare(const std::string& notation)
 {
-    return getSquare(notationToRank(notation[0]),
-                     notationToFile(notation[1]));
+    return getSquare(notationToRank(notation[1]),
+                     notationToFile(notation[0]));
 }
 
 std::string Cli::squareToNotation(const Square square)
@@ -58,7 +58,6 @@ int Cli::run()
         \/      \/                            \/       \/       \/       \/       \/ )";
     std::cout << "\n";
     std::cout << "~ A UCI/CLI Chess Engine written by Joe Chrisman.\n";
-    std::cout << "~ Version " << VERSION << "\n";
     std::cout << "~ Enter \"help\" for a list of commands.\n";
     std::cout << "> ";
 
@@ -161,6 +160,8 @@ int Cli::run()
             std::cout << "> ";
         }
     }
+    delete moveGenerator;
+    delete position;
     return 0;
 }
 
