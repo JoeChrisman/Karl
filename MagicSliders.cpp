@@ -14,7 +14,7 @@ U64 MagicSliders::ordinalAttacks[64][512];
 void MagicSliders::init()
 {
 
-    std::cout << "\033[7;97m~ Loading [ 0% ].\033[0m";
+    std::cout << "\033[7;97m     ~ Loading [ 0% ]     \033[0m";
 
     for (Square square = A8; square <= H1; square++)
     {

@@ -146,8 +146,8 @@ void MoveGenerator::generate()
 
     updateSafeSquares<isWhite>();
     updateResolverSquares<isWhite>();
-    //updatePins<isWhite, true>();
-    //updatePins<isWhite, false>();
+    updatePins<isWhite, true>();
+    updatePins<isWhite, false>();
     genPawnMoves<isWhite, quiets>();
     genKnightMoves<isWhite, quiets>();
     genKingMoves<isWhite, quiets>();
@@ -277,6 +277,9 @@ void MoveGenerator::genKnightMoves()
     constexpr Piece pieceMoving = isWhite ? WHITE_KNIGHT : BLACK_KNIGHT;
 
     U64 knights = position.bitboards[pieceMoving];
+
+    knights &= ~(ordinalPins | cardinalPins);
+
     while (knights)
     {
         Square from = popFirstPiece(knights);
@@ -309,6 +312,9 @@ void MoveGenerator::genBishopMoves()
 {
     constexpr Piece pieceMoving = isWhite ? WHITE_BISHOP : BLACK_BISHOP;
     U64 bishops = position.bitboards[pieceMoving];
+
+    bishops &= ~cardinalPins;
+
     while (bishops)
     {
         Square from = popFirstPiece(bishops);
@@ -322,6 +328,10 @@ void MoveGenerator::genBishopMoves()
             moves &= isWhite ? position.blackPieces : position.whitePieces;
         }
         moves &= resolverSquares;
+        if (getBoard(from) & ordinalPins)
+        {
+            moves &= ordinalPins;
+        }
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -341,6 +351,9 @@ void MoveGenerator::genRookMoves()
 {
     constexpr Piece pieceMoving = isWhite ? WHITE_ROOK : BLACK_ROOK;
     U64 rooks = position.bitboards[pieceMoving];
+
+    rooks &= ~ordinalPins;
+
     while (rooks)
     {
         Square from = popFirstPiece(rooks);
@@ -354,6 +367,10 @@ void MoveGenerator::genRookMoves()
             moves &= isWhite ? position.blackPieces : position.whitePieces;
         }
         moves &= resolverSquares;
+        if (getBoard(from) & cardinalPins)
+        {
+            moves &= cardinalPins;
+        }
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -374,11 +391,27 @@ void MoveGenerator::genQueenMoves()
     constexpr Piece pieceMoving = isWhite ? WHITE_QUEEN : BLACK_QUEEN;
 
     U64 queens = position.bitboards[pieceMoving];
+    U64 moves = EMPTY_BOARD;
     while (queens)
     {
         Square from = popFirstPiece(queens);
-        U64 moves = getSlidingMoves<true>(from) |
-                    getSlidingMoves<false>(from);
+        U64 queen = getBoard(from);
+        if (queen & ~cardinalPins)
+        {
+            moves |= getSlidingMoves<false>(from);
+            if (queen & ordinalPins)
+            {
+                moves &= ordinalPins;
+            }
+        }
+        if (queen & ~ordinalPins)
+        {
+            moves |= getSlidingMoves<true>(from);
+            if (queen & cardinalPins)
+            {
+                moves &= cardinalPins;
+            }
+        }
         if constexpr (quiets)
         {
             moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
@@ -408,7 +441,7 @@ void MoveGenerator::genKingMoves()
     Square from = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
     U64 moves = kingMoves[from];
     moves &= safeSquares;
-    if (quiets)
+    if constexpr (quiets)
     {
         moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
     }
@@ -502,6 +535,7 @@ void MoveGenerator::updateSafeSquares()
     attackedSquares |= kingMoves[getSquare(enemyKing)];
 
     safeSquares = ~attackedSquares;
+    printBitboard(attackedSquares);
 }
 
 template<bool isWhite>
@@ -559,4 +593,52 @@ void MoveGenerator::updateResolverSquares()
 }
 
 template<bool isWhite, bool isCardinal>
-void updatePins();
+void MoveGenerator::updatePins()
+{
+    if constexpr (isCardinal)
+    {
+        cardinalPins = EMPTY_BOARD;
+    }
+    else
+    {
+        ordinalPins = EMPTY_BOARD;
+    }
+
+    const Square king = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
+
+    U64 pinned = getSlidingMoves<isCardinal>(king);
+    pinned &= isWhite ? position.whitePieces : position.blackPieces;
+
+    position.occupiedSquares ^= pinned;
+
+    U64 pins = getSlidingMoves<isCardinal>(king);
+
+    U64 pinners = position.bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+    if constexpr (isCardinal)
+    {
+        pinners |=  position.bitboards[isWhite ? BLACK_ROOK : WHITE_ROOK];
+    }
+    else
+    {
+        pinners |=  position.bitboards[isWhite ? BLACK_BISHOP : WHITE_BISHOP];
+    }
+    pinners &= pins;
+
+    while (pinners)
+    {
+        const Square pinner = popFirstPiece(pinners);
+        U64 pin = getSlidingMoves<isCardinal>(pinner);
+        pin &= pins;
+        pin |= getBoard(pinner);
+
+        if constexpr (isCardinal)
+        {
+            cardinalPins |= pin;
+        }
+        else
+        {
+            ordinalPins |= pin;
+        }
+    }
+    position.occupiedSquares ^= pinned;
+}
