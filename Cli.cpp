@@ -71,7 +71,7 @@ int Cli::run()
                                                (________)
  )";
     std::cout << "\n";
-    std::cout << "~ A UCI/CLI Chess Engine written by Joe Chrisman.\n";
+    std::cout << "~ Welcome to Karl, a UCI/CLI Chess Engine.\n";
     std::cout << "~ Enter \"help\" for a list of commands.\n";
     std::cout << "> ";
 
@@ -85,7 +85,6 @@ int Cli::run()
         }
         else if (command == "help")
         {
-            std::cout << "\t~ This is the user manual for Karl Chess version " << VERSION << ".\n";
             std::cout << "\t~ \"quit\" to exit the CLI.\n";
             std::cout << "\t~ \"load <FEN>\" to load a position into the engine.\n";
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded.\n";
@@ -97,8 +96,15 @@ int Cli::run()
             std::cout << "\t\t~ For example, if we wanted to play e4 out of the starting position, \"makemove e2e4\" would suffice.\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position.\n";
             std::cout << "\t~ \"flip\" to flip the board.\n";
-            std::cout << "\t~ \"help\" to see this list of commands.\n";
             std::cout << "\t~ \"uci\" to enter UCI mode.\n";
+            std::cout << "\t~ \"info\" to see additional info about Karl.\n";
+            std::cout << "\t~ \"help\" to see this list of commands.\n";
+            std::cout << "> ";
+        }
+        else if (command == "info")
+        {
+            std::cout << "\t~ Version: version " << VERSION << ".\n";
+            std::cout << "\t~ Author: Joe Chrisman.\n";
             std::cout << "> ";
         }
         else if (command.substr(0, 4) == "load")

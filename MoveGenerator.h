@@ -54,7 +54,7 @@ private:
         genKingMoves<isWhite, quiets>();
         genRookMoves<isWhite, quiets>();
         genBishopMoves<isWhite, quiets>();
-        //genQueenMoves<isWhite, quiets>();
+        genQueenMoves<isWhite, quiets>();
     }
 
     template<bool isWhite, bool quiets>
@@ -231,8 +231,11 @@ private:
         {
             Square from = popFirstPiece(bishops);
             U64 moves = getSlidingMoves<false>(from);
-            moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
-            if constexpr (!quiets)
+            if constexpr (quiets)
+            {
+                moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
+            }
+            else
             {
                 moves &= isWhite ? position.blackPieces : position.whitePieces;
             }
@@ -259,8 +262,11 @@ private:
         {
             Square from = popFirstPiece(rooks);
             U64 moves = getSlidingMoves<true>(from);
-            moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
-            if constexpr (!quiets)
+            if constexpr (quiets)
+            {
+                moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
+            }
+            else
             {
                 rooks &= isWhite ? position.blackPieces : position.whitePieces;
             }
@@ -279,7 +285,37 @@ private:
     }
 
     template<bool isWhite, bool quiets>
-    void genQueenMoves();
+    void genQueenMoves()
+    {
+        constexpr Piece pieceMoving = isWhite ? WHITE_QUEEN : BLACK_QUEEN;
+
+        U64 queens = position.bitboards[pieceMoving];
+        while (queens)
+        {
+            Square from = popFirstPiece(queens);
+            U64 moves = getSlidingMoves<true>(from) |
+                        getSlidingMoves<false>(from);
+            if constexpr (quiets)
+            {
+                moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
+            }
+            else
+            {
+                moves &= isWhite ? position.blackPieces : position.whitePieces;
+            }
+            while (moves)
+            {
+                Square to = popFirstPiece(moves);
+                moveList.push_back(createMove(
+                        NORMAL,
+                        pieceMoving,
+                        position.pieces[to],
+                        from,
+                        to
+                ));
+            }
+        }
+    }
 
     template<bool isWhite, bool quiets>
     void genKingMoves()
@@ -294,7 +330,6 @@ private:
         {
             moves &= (isWhite ? position.blackPieces : position.whitePieces);
         }
-
         while (moves)
         {
             Square to = popFirstPiece(moves);

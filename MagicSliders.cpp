@@ -13,7 +13,8 @@ U64 MagicSliders::ordinalAttacks[64][512];
 
 void MagicSliders::init()
 {
-    std::cout << "~ Loading [ 0% ].";
+
+    std::cout << "\033[7;97m~ Loading [ 0% ].\033[0m";
 
     for (Square square = A8; square <= H1; square++)
     {
@@ -23,7 +24,8 @@ void MagicSliders::init()
         cardinalMagics[square].magic = getMagicNumber(square, true);
         ordinalMagics[square].magic = getMagicNumber(square, false);
         int percentComplete = 100 * square / 63;
-        std::cout << "\r~ Loading [ " << percentComplete << "% ]." << std::flush;
+
+        std::cout << "\r\033[7;97m     ~ Loading [ " << percentComplete << "% ]     \033[0m" << std::flush;
     }
     std::cout << "\n";
 }
