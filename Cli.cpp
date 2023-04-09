@@ -5,8 +5,8 @@
 #include "Cli.h"
 
 bool Cli::isWhiteOnBottom = true;
-Position* Cli::position = nullptr;
-MoveGenerator* Cli::moveGenerator = nullptr;
+Position* Cli::position = new Position(INITIAL_FEN);
+MoveGenerator* Cli::moveGenerator = new MoveGenerator(*Cli::position);
 
 int Cli::notationToFile(const char fileChar)
 {
@@ -77,6 +77,7 @@ int Cli::run()
         {
             std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
             std::cout << "\t~ \"load <FEN>\" to load a position into the engine\n";
+            std::cout << "\t\t~ This default position is the initial position for white\n";
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
             std::cout << "\t\t~ This program only accepts FEN strings where white is on the bottom and black is on the top\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
@@ -107,8 +108,8 @@ int Cli::run()
             {
                 fen = command.substr(5, std::string::npos);
             }
-            delete position;
             delete moveGenerator;
+            delete position;
             position = new Position(fen);
             moveGenerator = new MoveGenerator(*position);
             std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
