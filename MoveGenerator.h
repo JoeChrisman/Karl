@@ -52,8 +52,8 @@ private:
         genPawnMoves<isWhite, quiets>();
         genKnightMoves<isWhite, quiets>();
         genKingMoves<isWhite, quiets>();
-        //genRookMoves<isWhite, quiets>();
-        //genBishopMoves<isWhite, quiets>();
+        genRookMoves<isWhite, quiets>();
+        genBishopMoves<isWhite, quiets>();
         //genQueenMoves<isWhite, quiets>();
     }
 
@@ -223,10 +223,60 @@ private:
 
 
     template<bool isWhite, bool quiets>
-    void genBishopMoves();
+    void genBishopMoves()
+    {
+        constexpr Piece pieceMoving = isWhite ? WHITE_BISHOP : BLACK_BISHOP;
+        U64 bishops = position.bitboards[pieceMoving];
+        while (bishops)
+        {
+            Square from = popFirstPiece(bishops);
+            U64 moves = getSlidingMoves<false>(from);
+            moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
+            if constexpr (!quiets)
+            {
+                moves &= isWhite ? position.blackPieces : position.whitePieces;
+            }
+            while (moves)
+            {
+                Square to = popFirstPiece(moves);
+                moveList.emplace_back(createMove(
+                        NORMAL,
+                        pieceMoving,
+                        position.pieces[to],
+                        from,
+                        to
+                ));
+            }
+        }
+    }
 
     template<bool isWhite, bool quiets>
-    void genRookMoves();
+    void genRookMoves()
+    {
+        constexpr Piece pieceMoving = isWhite ? WHITE_ROOK : BLACK_ROOK;
+        U64 rooks = position.bitboards[pieceMoving];
+        while (rooks)
+        {
+            Square from = popFirstPiece(rooks);
+            U64 moves = getSlidingMoves<true>(from);
+            moves &= isWhite ? position.blackOrEmpty : position.whiteOrEmpty;
+            if constexpr (!quiets)
+            {
+                rooks &= isWhite ? position.blackPieces : position.whitePieces;
+            }
+            while (moves)
+            {
+                Square to = popFirstPiece(moves);
+                moveList.emplace_back(createMove(
+                        NORMAL,
+                        pieceMoving,
+                        position.pieces[to],
+                        from,
+                        to
+                ));
+            }
+        }
+    }
 
     template<bool isWhite, bool quiets>
     void genQueenMoves();
@@ -258,7 +308,27 @@ private:
         }
     }
 
-    template<bool isWhite>
+    template<bool isCardinal>
+    U64 getSlidingMoves(Square from)
+    {
+        if constexpr (isCardinal)
+        {
+            MagicSliders::MagicSquare square = MagicSliders::cardinalMagics[from];
+            U64 blockers = square.blockers & position.occupiedSquares;
+            return MagicSliders::cardinalAttacks[from][blockers * square.magic >> 52];
+        }
+        else
+        {
+            MagicSliders::MagicSquare square = MagicSliders::ordinalMagics[from];
+            U64 blockers = square.blockers & position.occupiedSquares;
+            return MagicSliders::ordinalAttacks[from][blockers * square.magic >> 55];
+        }
+    }
+
+
+
+
+        template<bool isWhite>
     void updateSafeSquares();
 
     template<bool isWhite>

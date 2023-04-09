@@ -13,16 +13,17 @@ U64 MagicSliders::ordinalAttacks[64][512];
 
 void MagicSliders::init()
 {
+    std::cout << "~ Loading [ 0% ].";
+
     for (Square square = A8; square <= H1; square++)
     {
-        int percentComplete = 100 * square / 63;
-        std::cout << "\r~ Loading [ " << percentComplete << "% ]." << std::flush;
-
         cardinalMagics[square].blockers = getRookBlockers(square);
         ordinalMagics[square].blockers = getBishopBlockers(square);
 
         cardinalMagics[square].magic = getMagicNumber(square, true);
         ordinalMagics[square].magic = getMagicNumber(square, false);
+        int percentComplete = 100 * square / 63;
+        std::cout << "\r~ Loading [ " << percentComplete << "% ]." << std::flush;
     }
     std::cout << "\n";
 }
@@ -200,7 +201,7 @@ U64 MagicSliders::getMagicNumber(Square square, bool isCardinal)
         U64 possibleBlockers = blockerMask;
         while (possibleBlockers)
         {
-            U64 blocker = popFirstPiece(possibleBlockers);
+            U64 blocker = getBoard(popFirstPiece(possibleBlockers));
             if (blockerPermutation % 2) {
                 actualBlockers |= blocker;
             }
