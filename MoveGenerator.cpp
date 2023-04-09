@@ -289,6 +289,7 @@ void MoveGenerator::genKnightMoves()
         {
             moves &= (isWhite ? position.blackPieces : position.whitePieces);
         }
+        moves &= resolverSquares;
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -320,6 +321,7 @@ void MoveGenerator::genBishopMoves()
         {
             moves &= isWhite ? position.blackPieces : position.whitePieces;
         }
+        moves &= resolverSquares;
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -351,6 +353,7 @@ void MoveGenerator::genRookMoves()
         {
             moves &= isWhite ? position.blackPieces : position.whitePieces;
         }
+        moves &= resolverSquares;
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -384,6 +387,7 @@ void MoveGenerator::genQueenMoves()
         {
             moves &= isWhite ? position.blackPieces : position.whitePieces;
         }
+        moves &= resolverSquares;
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -546,7 +550,6 @@ void MoveGenerator::updateResolverSquares()
         else
         {
             resolverSquares = EMPTY_BOARD;
-
         }
     }
     else
