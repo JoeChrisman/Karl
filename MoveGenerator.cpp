@@ -11,10 +11,108 @@ MoveGenerator::MoveGenerator(Position& _position) :
     cardinalPins = EMPTY_BOARD;
     ordinalPins = EMPTY_BOARD;
 
+    // create lookup tables for kings and knights
     initKingMoves();
     initKnightMoves();
 }
 
+void MoveGenerator::initKnightMoves()
+{
+    for (Square square = A8; square <= H1; square++)
+    {
+        int rank = getRank(square);
+        int file = getFile(square);
+        if (rank + 2 <= EIGHTH_RANK)
+        {
+            if (file > A_FILE)
+            {
+                knightMoves[square] |= getBoard(north<2>(west(square)));
+            }
+            if (file < H_FILE)
+            {
+                knightMoves[square] |= getBoard(north<2>(east(square)));
+            }
+        }
+        if (file + 2 <= H_FILE)
+        {
+            if (rank < EIGHTH_RANK)
+            {
+                knightMoves[square] |= getBoard(east<2>(north(square)));
+            }
+            if (rank > FIRST_RANK)
+            {
+                knightMoves[square] |= getBoard(east<2>(south(square)));
+            }
+        }
+        if (rank - 2 >= FIRST_RANK)
+        {
+            if (file > A_FILE)
+            {
+                knightMoves[square] |= getBoard(south<2>(west(square)));
+            }
+            if (file < H_FILE)
+            {
+                knightMoves[square] |= getBoard(south<2>(east(square)));
+
+            }
+        }
+        if (file - 2 >= A_FILE)
+        {
+            if (rank < EIGHTH_RANK)
+            {
+                knightMoves[square] |= getBoard(west<2>(north(square)));
+            }
+            if (rank > FIRST_RANK)
+            {
+                knightMoves[square] |= getBoard(west<2>(south(square)));
+            }
+        }
+    }
+}
+
+void MoveGenerator::initKingMoves()
+{
+    for (Square square = A8; square <= H1; square++)
+    {
+        int rank = getRank(square);
+        int file = getFile(square);
+        if (rank < EIGHTH_RANK)
+        {
+            if (file > A_FILE)
+            {
+                kingMoves[square] |= getBoard(northWest(square));
+            }
+            kingMoves[square] |= getBoard(north(square));
+            if (file < H_FILE)
+            {
+                kingMoves[square] |= getBoard(northEast(square));
+            }
+        }
+        if (file > A_FILE)
+        {
+            kingMoves[square] |= getBoard(west(square));
+        }
+        if (file < H_FILE)
+        {
+            kingMoves[square] |= getBoard(east(square));
+        }
+        if (rank > FIRST_RANK)
+        {
+            if (file > A_FILE)
+            {
+                kingMoves[square] |= getBoard(southWest(square));
+            }
+            kingMoves[square] |= getBoard(south(square));
+            if (file < H_FILE)
+            {
+                kingMoves[square] |= getBoard(southEast(square));
+            }
+        }
+    }
+}
+
+
+// generate quiet moves and captures
 void MoveGenerator::generateMoves()
 {
     if (position.isWhiteToMove)
@@ -27,6 +125,7 @@ void MoveGenerator::generateMoves()
     }
 }
 
+// generate captures only
 void MoveGenerator::generateCaptures()
 {
     if (position.isWhiteToMove)
@@ -39,13 +138,14 @@ void MoveGenerator::generateCaptures()
     }
 }
 
+// generate fully legal moves
 template<bool isWhite, bool quiets>
 void MoveGenerator::generate()
 {
     moveList.clear();
 
-    //updateSafeSquares<isWhite>();
-    //updateResolverSquares<isWhite>();
+    updateSafeSquares<isWhite>();
+    updateResolverSquares<isWhite>();
     //updatePins<isWhite, true>();
     //updatePins<isWhite, false>();
     genPawnMoves<isWhite, quiets>();
@@ -66,13 +166,15 @@ void MoveGenerator::genPawnMoves()
     constexpr U64 notPromotionMask = ~promotionMask;
 
     const U64 pawns = position.bitboards[pieceMoving];
-
+    // push the pawns one square
     U64 pushed1 = (isWhite ? north(pawns) : south(pawns));
-
+    // calculate left captures
     U64 leftCaptures = (isWhite ? west(pushed1 & leftCaptureMask)
                                 : east(pushed1 & leftCaptureMask));
+    // calculate right captures
     U64 rightCaptures = (isWhite ? east(pushed1 & rightCaptureMask)
                                  : west(pushed1 & rightCaptureMask));
+    // make sure the captures actually capture something
     leftCaptures &= (isWhite ? position.blackPieces : position.whitePieces);
     rightCaptures &= (isWhite ? position.blackPieces : position.whitePieces);
 
@@ -181,15 +283,12 @@ void MoveGenerator::genKnightMoves()
         U64 moves = knightMoves[from];
         if constexpr (quiets)
         {
-            // quiet moves and captures
             moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
         }
         else
         {
-            // captures only
             moves &= (isWhite ? position.blackPieces : position.whitePieces);
         }
-
         while (moves)
         {
             Square to = popFirstPiece(moves);
@@ -304,6 +403,7 @@ void MoveGenerator::genKingMoves()
 {
     Square from = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
     U64 moves = kingMoves[from];
+    moves &= safeSquares;
     if (quiets)
     {
         moves &= (isWhite ? position.blackOrEmpty : position.whiteOrEmpty);
@@ -358,101 +458,102 @@ U64 MoveGenerator::getSlidingMoves(Square from)
     }
 }
 
-
-void MoveGenerator::initKnightMoves()
+template<bool isWhite>
+void MoveGenerator::updateSafeSquares()
 {
-    for (Square square = A8; square <= H1; square++)
-    {
-        int rank = getRank(square);
-        int file = getFile(square);
-        if (rank + 2 <= EIGHTH_RANK)
-        {
-            if (file > A_FILE)
-            {
-                knightMoves[square] |= getBoard(north<2>(west(square)));
-            }
-            if (file < H_FILE)
-            {
-                knightMoves[square] |= getBoard(north<2>(east(square)));
-            }
-        }
-        if (file + 2 <= H_FILE)
-        {
-            if (rank < EIGHTH_RANK)
-            {
-                knightMoves[square] |= getBoard(east<2>(north(square)));
-            }
-            if (rank > FIRST_RANK)
-            {
-                knightMoves[square] |= getBoard(east<2>(south(square)));
-            }
-        }
-        if (rank - 2 >= FIRST_RANK)
-        {
-            if (file > A_FILE)
-            {
-                knightMoves[square] |= getBoard(south<2>(west(square)));
-            }
-            if (file < H_FILE)
-            {
-                knightMoves[square] |= getBoard(south<2>(east(square)));
+    U64 attackedSquares = EMPTY_BOARD;
 
-            }
-        }
-        if (file - 2 >= A_FILE)
+    const U64 king = position.bitboards[isWhite ? WHITE_KING : BLACK_KING];
+    position.occupiedSquares ^= king;
+
+    U64 cardinalAttackers = position.bitboards[isWhite ? BLACK_ROOK : WHITE_ROOK] |
+                            position.bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+    while (cardinalAttackers)
+    {
+        attackedSquares |= getSlidingMoves<true>(popFirstPiece(cardinalAttackers));
+    }
+    U64 ordinalAttackers = position.bitboards[isWhite ? BLACK_BISHOP : WHITE_BISHOP] |
+                           position.bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+    while (ordinalAttackers)
+    {
+        attackedSquares |= getSlidingMoves<false>(popFirstPiece(ordinalAttackers));
+    }
+
+    position.occupiedSquares ^= king;
+
+    const U64 enemyPawns = position.bitboards[isWhite ? BLACK_PAWN : WHITE_PAWN];
+    U64 eastAttacks = isWhite ? southEast(enemyPawns) : northEast(enemyPawns);
+    eastAttacks &= ~FILE_MASKS[A_FILE];
+    U64 westAttacks = isWhite ? southWest(enemyPawns) : northWest(enemyPawns);
+    westAttacks &= ~FILE_MASKS[H_FILE];
+    attackedSquares |= eastAttacks | westAttacks;
+
+    U64 enemyKnights = position.bitboards[isWhite ? BLACK_KNIGHT : WHITE_KNIGHT];
+    while (enemyKnights)
+    {
+        attackedSquares |= knightMoves[popFirstPiece(enemyKnights)];
+    }
+
+    U64 enemyKing = position.bitboards[isWhite ? BLACK_KING : WHITE_KING];
+    attackedSquares |= kingMoves[getSquare(enemyKing)];
+
+    safeSquares = ~attackedSquares;
+}
+
+template<bool isWhite>
+void MoveGenerator::updateResolverSquares()
+{
+    const Square king = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
+
+    const U64 cardinalAttacks = getSlidingMoves<true>(king);
+    const U64 ordinalAttacks = getSlidingMoves<false>(king);
+
+    U64 cardinalAttackers = isWhite ? position.bitboards[BLACK_ROOK] : position.bitboards[WHITE_ROOK];
+    U64 ordinalAttackers = isWhite ? position.bitboards[BLACK_BISHOP] : position.bitboards[WHITE_BISHOP];
+    cardinalAttackers |= isWhite ? position.bitboards[BLACK_QUEEN] : position.bitboards[WHITE_QUEEN];
+    ordinalAttackers |= isWhite ? position.bitboards[BLACK_QUEEN] : position.bitboards[WHITE_QUEEN];
+    cardinalAttackers &= cardinalAttacks;
+    ordinalAttackers &= ordinalAttacks;
+
+    U64 attackers = cardinalAttackers | ordinalAttackers;
+    attackers |= knightMoves[king] & position.bitboards[isWhite ? BLACK_KNIGHT : WHITE_KNIGHT];
+
+    U64 eastAttacks = isWhite ? northEast(king) : southEast(king);
+    eastAttacks &= ~FILE_MASKS[A_FILE];
+    U64 westAttacks = isWhite ? northWest(king) : southWest(king);
+    westAttacks &= ~FILE_MASKS[H_FILE];
+    attackers |= position.bitboards[isWhite ? BLACK_PAWN : WHITE_PAWN] & (eastAttacks | westAttacks);
+
+    if (attackers)
+    {
+        if (getNumPieces(attackers) == 1)
         {
-            if (rank < EIGHTH_RANK)
+            if (cardinalAttackers)
             {
-                knightMoves[square] |= getBoard(west<2>(north(square)));
+                resolverSquares = cardinalAttacks & getSlidingMoves<true>(getSquare(attackers));
+                resolverSquares |= attackers;
             }
-            if (rank > FIRST_RANK)
+            else if (ordinalAttackers)
             {
-                knightMoves[square] |= getBoard(west<2>(south(square)));
+                resolverSquares = ordinalAttacks & getSlidingMoves<false>(getSquare(attackers));
+                resolverSquares |= attackers;
+            }
+            else
+            {
+                resolverSquares = attackers;
             }
         }
+        else
+        {
+            resolverSquares = EMPTY_BOARD;
+
+        }
+    }
+    else
+    {
+        resolverSquares = FULL_BOARD;
     }
 }
 
-void MoveGenerator::initKingMoves()
-{
-    for (Square square = A8; square <= H1; square++)
-    {
-        int rank = getRank(square);
-        int file = getFile(square);
-        if (rank < EIGHTH_RANK)
-        {
-            if (file > A_FILE)
-            {
-                kingMoves[square] |= getBoard(northWest(square));
-            }
-            kingMoves[square] |= getBoard(north(square));
-            if (file < H_FILE)
-            {
-                kingMoves[square] |= getBoard(northEast(square));
-            }
-        }
-        if (file > A_FILE)
-        {
-            kingMoves[square] |= getBoard(west(square));
-        }
-        if (file < H_FILE)
-        {
-            kingMoves[square] |= getBoard(east(square));
-        }
-        if (rank > FIRST_RANK)
-        {
-            if (file > A_FILE)
-            {
-                kingMoves[square] |= getBoard(southWest(square));
-            }
-            kingMoves[square] |= getBoard(south(square));
-            if (file < H_FILE)
-            {
-                kingMoves[square] |= getBoard(southEast(square));
-            }
-        }
-    }
-}
-
-
-
+template<bool isWhite, bool isCardinal>
+void updatePins();

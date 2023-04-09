@@ -77,7 +77,7 @@ int Cli::run()
         {
             std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
             std::cout << "\t~ \"load <FEN>\" to load a position into the engine\n";
-            std::cout << "\t\t~ This default position is the initial position for white\n";
+            std::cout << "\t\t~ The default position is the initial position playing as white\n";
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
             std::cout << "\t\t~ This program only accepts FEN strings where white is on the bottom and black is on the top\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
@@ -89,6 +89,10 @@ int Cli::run()
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
             std::cout << "\t~ \"flip\" to flip the board\n";
+            //std::cout << "\t~ \"perft <plies>\" to run a perft test\n";
+            //std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
+            //std::cout << "\t\t~ The field \"<ply> must be an integer greater than zero and is the number of half moves to search\n";
+            //std::cout << "\t\t~ Visit this webpage to learn more about perft: https://www.chessprogramming.org/Perft\n";
             std::cout << "\t~ \"uci\" to enter UCI mode\n";
             std::cout << "\t~ \"info\" to see additional info about Karl\n";
             std::cout << "\t~ \"help\" to see this list of commands\n";
@@ -185,6 +189,10 @@ int Cli::run()
             isWhiteOnBottom = !isWhiteOnBottom;
             std::cout << "~ Successfully flipped the board\n";
             std::cout << "> ";
+        }
+        else if (command == "perft")
+        {
+
         }
         else if (command == "uci")
         {

@@ -27,6 +27,8 @@ private:
 
     // squares that resolve a check
     U64 resolverSquares;
+    // squares that are not attacked by our opponent
+    U64 safeSquares;
     // squares along pins
     U64 cardinalPins;
     U64 ordinalPins;
@@ -66,7 +68,6 @@ private:
 
     template<bool isWhite, bool isCardinal>
     void updatePins();
-
 
 };
 
