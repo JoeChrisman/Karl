@@ -15,16 +15,16 @@ typedef int Piece;
 typedef int Square;
 typedef int Move;
 
-static const std::string VERSION = "0.0.1 <beta>";
-static const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+const std::string VERSION = "0.2 <beta>";
+const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-static constexpr U64 EMPTY_BOARD = 0;
-static constexpr U64 FULL_BOARD = ~0;
+const U64 EMPTY_BOARD = 0;
+const U64 FULL_BOARD = ~0;
 
-static constexpr Move NULL_MOVE = 0;
-static constexpr Square NULL_SQUARE = -1;
+const Move NULL_MOVE = 0;
+const Square NULL_SQUARE = -1;
 
-static constexpr U64 FILE_MASKS[8] = {
+constexpr U64 FILE_MASKS[8] = {
         0x0101010101010101,
         0x0202020202020202,
         0x0404040404040404,
@@ -35,7 +35,7 @@ static constexpr U64 FILE_MASKS[8] = {
         0x8080808080808080,
 };
 
-static constexpr U64 RANK_MASKS[8] = {
+constexpr U64 RANK_MASKS[8] = {
         0xff00000000000000,
         0x00ff000000000000,
         0x0000ff0000000000,

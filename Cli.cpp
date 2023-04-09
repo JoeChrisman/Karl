@@ -46,16 +46,6 @@ std::string Cli::moveToNotation(const Move move)
     return squareToNotation(getSquareFrom(move)) + squareToNotation(getSquareTo(move));
 }
 
-/*
-   |\_
-  /  .\_
- |   ___)
- |    \
- |  =  |
- /_____\
-[_______]
- */
-
 int Cli::run()
 {
     std::cout << R"(
@@ -71,40 +61,42 @@ int Cli::run()
                                                (________)
  )";
     std::cout << "\n";
-    std::cout << "~ Welcome to Karl, a UCI/CLI Chess Engine.\n";
-    std::cout << "~ Enter \"help\" for a list of commands.\n";
+    std::cout << "~ Welcome to Karl, a UCI/CLI chess engine\n";
+    std::cout << "~ Enter \"help\" for a list of commands\n";
     std::cout << "> ";
 
     std::string command;
     while (std::getline(std::cin, command))
     {
-        if (command == "quit")
+        if (command == "quit" || command == "exit")
         {
-            std::cout << "~ Bye!.\n";
+            std::cout << "~ Bye!\n";
             break;
         }
         else if (command == "help")
         {
-            std::cout << "\t~ \"quit\" to exit the CLI.\n";
-            std::cout << "\t~ \"load <FEN>\" to load a position into the engine.\n";
-            std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded.\n";
-            std::cout << "\t\t~ This program only accepts FEN strings where white is on the bottom and black is on the top.\n";
-            std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command.\n";
-            std::cout << "\t~ \"show\" to show the current position.\n";
-            std::cout << "\t~ \"move <from><to>\" to make a move.\n";
-            std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation.\n";
-            std::cout << "\t\t~ For example, if we wanted to play e4 out of the starting position, \"makemove e2e4\" would suffice.\n";
-            std::cout << "\t~ \"moves\" to view a list of legal moves in the current position.\n";
-            std::cout << "\t~ \"flip\" to flip the board.\n";
-            std::cout << "\t~ \"uci\" to enter UCI mode.\n";
-            std::cout << "\t~ \"info\" to see additional info about Karl.\n";
-            std::cout << "\t~ \"help\" to see this list of commands.\n";
+            std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
+            std::cout << "\t~ \"load <FEN>\" to load a position into the engine\n";
+            std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
+            std::cout << "\t\t~ This program only accepts FEN strings where white is on the bottom and black is on the top\n";
+            std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
+            std::cout << "\t~ \"show\" to show the current position\n";
+            std::cout << "\t~ \"who\" to show who's turn it is\n";
+            std::cout << "\t~ \"move <from><to>\" to make a move\n";
+            std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation\n";
+            std::cout << "\t\t~ For example, if you wanted to play e4 out of the starting position, \"makemove e2e4\" would suffice\n";
+            std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
+            std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
+            std::cout << "\t~ \"flip\" to flip the board\n";
+            std::cout << "\t~ \"uci\" to enter UCI mode\n";
+            std::cout << "\t~ \"info\" to see additional info about Karl\n";
+            std::cout << "\t~ \"help\" to see this list of commands\n";
             std::cout << "> ";
         }
         else if (command == "info")
         {
-            std::cout << "\t~ Version: version " << VERSION << ".\n";
-            std::cout << "\t~ Author: Joe Chrisman.\n";
+            std::cout << "\t~ Version: version " << VERSION << "\n";
+            std::cout << "\t~ Author: Joe Chrisman\n";
             std::cout << "> ";
         }
         else if (command.substr(0, 4) == "load")
@@ -115,9 +107,11 @@ int Cli::run()
             {
                 fen = command.substr(5, std::string::npos);
             }
+            delete position;
+            delete moveGenerator;
             position = new Position(fen);
             moveGenerator = new MoveGenerator(*position);
-            std::cout << "~ Successfully loaded position \"" << fen << "\".\n";
+            std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
             std::cout << "> ";
         }
         else if (command == "show")
@@ -125,12 +119,25 @@ int Cli::run()
             position->printPosition(isWhiteOnBottom);
             std::cout << "> ";
         }
+        else if (command == "who")
+        {
+            if (position->isWhiteToMove)
+            {
+                std::cout << "~ It is white to move\n";
+
+            }
+            else
+            {
+                std::cout << "~ It is black to move\n";
+            }
+            std::cout << "> ";
+        }
         else if (command.substr(0, 8) == "makemove")
         {
             std::string notation = command.substr(9, std::string::npos);
             Square from = notationToSquare(notation.substr(0, 2));
             Square to = notationToSquare(notation.substr(2, 2));
-            moveGenerator->generateMoves<true>();
+            moveGenerator->generateMoves();
             Move legalMove = NULL_MOVE;
             for (const Move move : moveGenerator->moveList)
             {
@@ -143,20 +150,29 @@ int Cli::run()
             if (legalMove != NULL_MOVE)
             {
                 position->makeMove(legalMove);
-                std::cout << "~ Successfully played move \"" << notation << "\".\n";
+                std::cout << "~ Successfully played move \"" << notation << "\"\n";
             }
             else
             {
-
-                std::cout << "~ Failed to make move \"" << notation << "\".\n";
-                std::cout << "~ \"" << notation << "\" is not a legal move.\n";
+                std::cout << "~ Failed to make move \"" << notation << "\"\n";
+                std::cout << "~ \"" << notation << "\" is not a legal move\n";
             }
             std::cout << "> ";
         }
         else if (command == "moves")
         {
-            moveGenerator->generateMoves<true>();
+            moveGenerator->generateMoves();
             std::cout << "~ There are " << moveGenerator->moveList.size() << " legal moves\n";
+            for (Move move : moveGenerator->moveList)
+            {
+                std::cout << "\t~ " << moveToNotation(move) << "\n";
+            }
+            std::cout << "> ";
+        }
+        else if (command == "captures")
+        {
+            moveGenerator->generateCaptures();
+            std::cout << "~ There are " << moveGenerator->moveList.size() << " legal captures\n";
             for (Move move : moveGenerator->moveList)
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
@@ -166,7 +182,7 @@ int Cli::run()
         else if (command == "flip")
         {
             isWhiteOnBottom = !isWhiteOnBottom;
-            std::cout << "~ Successfully flipped the board.\n";
+            std::cout << "~ Successfully flipped the board\n";
             std::cout << "> ";
         }
         else if (command == "uci")
@@ -175,8 +191,8 @@ int Cli::run()
         }
         else
         {
-            std::cout << "~ Unrecognized command.\n";
-            std::cout << "~ Run \"help\" for a list of commands.\n";
+            std::cout << "~ Unrecognized command\n";
+            std::cout << "~ Run \"help\" for a list of commands\n";
             std::cout << "> ";
         }
     }
