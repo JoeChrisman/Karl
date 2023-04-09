@@ -2,6 +2,6 @@
 
 int main()
 {
-    std::cout << "Loading Karl Chess version " << VERSION << "...\n";
+    MagicSliders::init();
     return Cli::run();
 }

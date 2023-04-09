@@ -46,16 +46,30 @@ std::string Cli::moveToNotation(const Move move)
     return squareToNotation(getSquareFrom(move)) + squareToNotation(getSquareTo(move));
 }
 
+/*
+   |\_
+  /  .\_
+ |   ___)
+ |    \
+ |  =  |
+ /_____\
+[_______]
+ */
+
 int Cli::run()
 {
-    isWhiteOnBottom = true;
-
-    std::cout << R"(____  __.                   .__      _________   .__
-|    |/ _| _____    _______  |  |     \_   ___ \  |  |__     ____     ______   ______
-|      <   \__  \   \_  __ \ |  |     /    \  \/  |  |  \  _/ __ \   /  ___/  /  ___/
-|    |  \   / __ \_  |  | \/ |  |__   \     \____ |   Y  \ \  ___/   \___ \   \___ \
-|____|__ \ (____  /  |__|    |____/    \______  / |___|  /  \___  > /____  > /____  >
-        \/      \/                            \/       \/       \/       \/       \/ )";
+    std::cout << R"(
+                                                  (\=,
+                                                //   .\
+                                               (( \__  \
+      ____  __.                   .__           ))   `\_)
+      |    |/ _| _____    _______  |  |        (/      \
+      |      <   \__  \   \_  __ \ |  |         | _..-'|
+      |    |  \   / __ \_  |  | \/ |  |__        )____(
+      |____|__ \ (____  /  |__|    |____/       (======)
+              \/      \/                        }======{
+                                               (________)
+ )";
     std::cout << "\n";
     std::cout << "~ A UCI/CLI Chess Engine written by Joe Chrisman.\n";
     std::cout << "~ Enter \"help\" for a list of commands.\n";

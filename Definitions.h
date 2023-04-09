@@ -191,6 +191,11 @@ inline Square popFirstPiece(U64& board)
     return piece;
 }
 
+inline int getNumPieces(const U64 board)
+{
+    return __builtin_popcountll(board);
+}
+
 template<int distance = 1>
 U64 north(const U64 board)
 {
@@ -214,7 +219,6 @@ U64 west(const U64 board)
 {
     return board >> distance;
 }
-
 
 template<int distance = 1>
 U64 northEast(const U64 board)
@@ -269,7 +273,6 @@ Square northEast(const Square square)
 {
     return square - 7 * distance;
 }
-
 
 template<int distance = 1>
 Square southEast(const Square square)

@@ -7,9 +7,15 @@
 MoveGenerator::MoveGenerator(Position& _position) :
         position(_position)
 {
+    resolverSquares = FULL_BOARD;
+    cardinalPins = EMPTY_BOARD;
+    ordinalPins = EMPTY_BOARD;
+
+
     initKingMoves();
     initKnightMoves();
 }
+
 
 void MoveGenerator::initKnightMoves()
 {

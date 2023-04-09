@@ -6,6 +6,7 @@
 #define KARL_MOVEGENERATOR_H
 
 #include "Position.h"
+#include "MagicSliders.h"
 
 class MoveGenerator
 {
@@ -35,7 +36,7 @@ private:
     void initKingMoves();
     std::vector<U64> kingMoves = std::vector<U64>(64, EMPTY_BOARD);
 
-    // squares we can move a piece to without leaving the king in check
+    // squares that resolve a check
     U64 resolverSquares;
     // squares along pins
     U64 cardinalPins;
