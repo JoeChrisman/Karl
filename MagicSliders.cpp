@@ -10,7 +10,6 @@ MagicSliders::MagicSquare MagicSliders::cardinalMagics[64];
 U64 MagicSliders::cardinalAttacks[64][4096];
 U64 MagicSliders::ordinalAttacks[64][512];
 
-
 void MagicSliders::init()
 {
     std::cout << "\033[;35m~ Loading... \033[0m";

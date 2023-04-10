@@ -6,6 +6,9 @@
 
 Position::Position(const std::string& fen)
 {
+    bitboards.clear();
+    pieces.clear();
+
     bool readingPieces = true;
     Square square = A8;
     for (const char letter : fen)

@@ -92,7 +92,7 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ \"move <from><to>\" to make a move\n";
             std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation\n";
             std::cout << "\t\t~ \"<from>\" is where the piece is, \"<to>\" is where to move the piece\n";
-            std::cout << "\t\t~ For example, \"e2e4\" would move the piece on e2 to e4\n";
+            std::cout << "\t\t~ For example, \"move e2e4\" would move the piece on e2 to e4\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
             //std::cout << "\t~ \"perft <plies>\" to run a perft test\n";

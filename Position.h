@@ -9,6 +9,7 @@
 
 class Position
 {
+
 public:
     Position() = default;
     explicit Position(const std::string& fen);
@@ -30,6 +31,17 @@ public:
     void printPosition(bool isWhiteOnBottom) const;
     void makeMove(const Move move);
     void unMakeMove();
+
+    struct Rights
+    {
+        U64 enPassant;
+        bool whiteLongCastle;
+        bool whiteShortCastle;
+        bool blackLongCastle;
+        bool blackShortCastle;
+        int currentPly;
+        int lastIrreversiblePly;
+    };
 
 private:
 
