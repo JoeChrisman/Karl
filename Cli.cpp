@@ -8,6 +8,11 @@ bool Cli::isWhiteOnBottom = true;
 Position* Cli::position = new Position(INITIAL_FEN);
 MoveGenerator* Cli::moveGenerator = new MoveGenerator(*Cli::position);
 
+void Cli::showReady()
+{
+    std::cout << "\033[;35m> \033[0m";
+}
+
 int Cli::notationToFile(const char fileChar)
 {
     return (int)(fileChar - 'a');
@@ -49,21 +54,21 @@ std::string Cli::moveToNotation(const Move move)
 int Cli::run()
 {
     std::cout << R"(
-                                                  (\=,
-                                                //   .\
-                                               (( \__  \
-      ____  __.                   .__           ))   `\_)
-      |    |/ _| _____    _______  |  |        (/      \
-      |      <   \__  \   \_  __ \ |  |         | _..-'|
-      |    |  \   / __ \_  |  | \/ |  |__        )____(
-      |____|__ \ (____  /  |__|    |____/       (======)
-              \/      \/                        }======{
-                                               (________)
- )";
+                      (\=,
+                    //   .\
+                   (( \__  \
+____  __.           ))   `\_) .__
+|    |/ _| _____   (/      \  | `|
+| `    <   \__  \   | _..-'|  |  |
+|    |  \   / __ \_  )____(   |  |__.
+|____|__ \ (____  / (======)  |  __/
+        \/      \/  }======{   \/
+                   (________)
+    )";
     std::cout << "\n";
     std::cout << "~ Welcome to Karl, a UCI/CLI chess engine\n";
     std::cout << "~ Enter \"help\" for a list of commands\n";
-    std::cout << "> ";
+    showReady();
 
     std::string command;
     while (std::getline(std::cin, command))
@@ -79,16 +84,17 @@ int Cli::run()
             std::cout << "\t~ \"load <FEN>\" to load a position into the engine\n";
             std::cout << "\t\t~ The default position is the initial position playing as white\n";
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
-            std::cout << "\t\t~ This program only accepts FEN strings where white is on the bottom and black is on the top\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
             std::cout << "\t~ \"show\" to show the current position\n";
             std::cout << "\t~ \"who\" to show who's turn it is\n";
+            std::cout << "\t~ \"flip\" to flip the board\n";
+            std::cout << "\t~ \"pass\" to switch turns without making a move\n";
             std::cout << "\t~ \"move <from><to>\" to make a move\n";
             std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation\n";
-            std::cout << "\t\t~ For example, if you wanted to play e4 out of the starting position, \"makemove e2e4\" would suffice\n";
+            std::cout << "\t\t~ \"<from>\" is where the piece is, \"<to>\" is where to move the piece\n";
+            std::cout << "\t\t~ For example, \"e2e4\" would move the piece on e2 to e4\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
-            std::cout << "\t~ \"flip\" to flip the board\n";
             //std::cout << "\t~ \"perft <plies>\" to run a perft test\n";
             //std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
             //std::cout << "\t\t~ The field \"<ply> must be an integer greater than zero and is the number of half moves to search\n";
@@ -96,13 +102,13 @@ int Cli::run()
             std::cout << "\t~ \"uci\" to enter UCI mode\n";
             std::cout << "\t~ \"info\" to see additional info about Karl\n";
             std::cout << "\t~ \"help\" to see this list of commands\n";
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "info")
         {
             std::cout << "\t~ Version: version " << VERSION << "\n";
             std::cout << "\t~ Author: Joe Chrisman\n";
-            std::cout << "> ";
+            showReady();
         }
         else if (command.substr(0, 4) == "load")
         {
@@ -117,12 +123,12 @@ int Cli::run()
             position = new Position(fen);
             moveGenerator = new MoveGenerator(*position);
             std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "show")
         {
             position->printPosition(isWhiteOnBottom);
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "who")
         {
@@ -135,7 +141,7 @@ int Cli::run()
             {
                 std::cout << "~ It is black to move\n";
             }
-            std::cout << "> ";
+            showReady();
         }
         else if (command.substr(0, 8) == "makemove")
         {
@@ -162,7 +168,7 @@ int Cli::run()
                 std::cout << "~ Failed to make move \"" << notation << "\"\n";
                 std::cout << "~ \"" << notation << "\" is not a legal move\n";
             }
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "moves")
         {
@@ -172,7 +178,7 @@ int Cli::run()
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "captures")
         {
@@ -182,13 +188,19 @@ int Cli::run()
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
-            std::cout << "> ";
+            showReady();
         }
         else if (command == "flip")
         {
             isWhiteOnBottom = !isWhiteOnBottom;
             std::cout << "~ Successfully flipped the board\n";
-            std::cout << "> ";
+            showReady();
+        }
+        else if (command == "pass")
+        {
+            position->isWhiteToMove = !position->isWhiteToMove;
+            std::cout << "~ Successfully gave " << (position->isWhiteToMove ? "white" : "black") << " the move.\n";
+            showReady();
         }
         else if (command == "perft")
         {
@@ -202,7 +214,7 @@ int Cli::run()
         {
             std::cout << "~ Unrecognized command\n";
             std::cout << "~ Run \"help\" for a list of commands\n";
-            std::cout << "> ";
+            showReady();
         }
     }
     delete moveGenerator;

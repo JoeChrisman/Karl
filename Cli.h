@@ -19,6 +19,7 @@ namespace Cli
     extern Position* position;
     extern MoveGenerator* moveGenerator;
 
+    void showReady();
     int notationToFile(const char fileChar);
     int notationToRank(const char rankChar);
     char fileToNotation(const int file);
