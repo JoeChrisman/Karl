@@ -6,8 +6,8 @@
 
 Position::Position(const std::string& fen)
 {
-    bitboards.clear();
-    pieces.clear();
+    bitboards = std::vector<U64>(12, EMPTY_BOARD);
+    pieces = std::vector<Piece>(64, NULL_PIECE);
 
     bool readingPieces = true;
     Square square = A8;
@@ -68,10 +68,10 @@ inline void Position::updateBitboards()
 
 void Position::makeMove(const Move move)
 {
-    Square from = getSquareFrom(move);
-    Square to = getSquareTo(move);
-    Piece moved = getPieceMoved(move);
-    Piece captured = getPieceCaptured(move);
+    const Square from = getSquareFrom(move);
+    const Square to = getSquareTo(move);
+    const Piece moved = getPieceMoved(move);
+    const Piece captured = getPieceCaptured(move);
 
     pieces[from] = NULL_PIECE;
     pieces[to] = moved;
@@ -87,9 +87,31 @@ void Position::makeMove(const Move move)
     updateBitboards();
 }
 
-void Position::unMakeMove()
+void Position::unMakeMove(const Move move)
 {
+    const Square from = getSquareFrom(move);
+    const Square to = getSquareTo(move);
+    const Piece moved = getPieceMoved(move);
+    const Piece captured = getPieceCaptured(move);
 
+    assert(from >= A8 && from <= H1);
+    assert(to >= A8 && to <= H1);
+    assert(moved != NULL_PIECE);
+
+
+    pieces[from] = moved;
+    pieces[to] = captured;
+
+    bitboards[moved] ^= getBoard(to);
+    bitboards[moved] |= getBoard(from);
+
+    if (captured != NULL_PIECE)
+    {
+        bitboards[captured] ^= getBoard(to);
+    }
+
+    isWhiteToMove = !isWhiteToMove;
+    updateBitboards();
 }
 
 void Position::printPosition(bool isWhiteOnBottom) const

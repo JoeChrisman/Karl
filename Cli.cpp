@@ -2,11 +2,13 @@
 // Created by Joe Chrisman on 4/7/23.
 //
 
+#include <ctime>
 #include "Cli.h"
 
+Position Cli::position = Position(INITIAL_FEN);
+MoveGenerator Cli::moveGenerator = MoveGenerator(Cli::position);
+
 bool Cli::isWhiteOnBottom = true;
-Position* Cli::position = new Position(INITIAL_FEN);
-MoveGenerator* Cli::moveGenerator = new MoveGenerator(*Cli::position);
 
 void Cli::showReady()
 {
@@ -118,21 +120,17 @@ ____  __.           ))   `\_) .__
             {
                 fen = command.substr(5, std::string::npos);
             }
-            delete moveGenerator;
-            delete position;
-            position = new Position(fen);
-            moveGenerator = new MoveGenerator(*position);
             std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
             showReady();
         }
         else if (command == "show")
         {
-            position->printPosition(isWhiteOnBottom);
+            position.printPosition(isWhiteOnBottom);
             showReady();
         }
         else if (command == "who")
         {
-            if (position->isWhiteToMove)
+            if (position.isWhiteToMove)
             {
                 std::cout << "~ It is white to move\n";
 
@@ -148,9 +146,9 @@ ____  __.           ))   `\_) .__
             std::string notation = command.substr(9, std::string::npos);
             Square from = notationToSquare(notation.substr(0, 2));
             Square to = notationToSquare(notation.substr(2, 2));
-            moveGenerator->generateMoves();
+            moveGenerator.generateMoves();
             Move legalMove = NULL_MOVE;
-            for (const Move move : moveGenerator->moveList)
+            for (const Move move : moveGenerator.moveList)
             {
                 if (getSquareFrom(move) == from && getSquareTo(move) == to)
                 {
@@ -160,7 +158,7 @@ ____  __.           ))   `\_) .__
             }
             if (legalMove != NULL_MOVE)
             {
-                position->makeMove(legalMove);
+                position.makeMove(legalMove);
                 std::cout << "~ Successfully played move \"" << notation << "\"\n";
             }
             else
@@ -172,9 +170,9 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "moves")
         {
-            moveGenerator->generateMoves();
-            std::cout << "~ There are " << moveGenerator->moveList.size() << " legal moves\n";
-            for (Move move : moveGenerator->moveList)
+            moveGenerator.generateMoves();
+            std::cout << "~ There are " << moveGenerator.moveList.size() << " legal moves\n";
+            for (Move move : moveGenerator.moveList)
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
@@ -182,9 +180,9 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "captures")
         {
-            moveGenerator->generateCaptures();
-            std::cout << "~ There are " << moveGenerator->moveList.size() << " legal captures\n";
-            for (Move move : moveGenerator->moveList)
+            moveGenerator.generateCaptures();
+            std::cout << "~ There are " << moveGenerator.moveList.size() << " legal captures\n";
+            for (Move move : moveGenerator.moveList)
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
@@ -198,13 +196,47 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "pass")
         {
-            position->isWhiteToMove = !position->isWhiteToMove;
-            std::cout << "~ Successfully gave " << (position->isWhiteToMove ? "white" : "black") << " the move.\n";
+            position.isWhiteToMove = !position.isWhiteToMove;
+            std::cout << "~ Successfully gave " << (position.isWhiteToMove ? "white" : "black") << " the move\n";
             showReady();
         }
-        else if (command == "perft")
+        else if (command.substr(0, 5) == "perft")
         {
+            // read desired depths
+            const std::string::size_type minDepthIndex = command.find_first_of(' ');
+            const std::string::size_type maxDepthIndex = command.find_last_of(' ');
+            if (minDepthIndex == std::string::npos)
+            {
+                std::cout << "~ Unrecognized arguments\n";
+                std::cout << "~ Run \"help\" for a list of commands\n";
+                showReady();
+            }
+            else
+            {
+                std::string minDepth = command.substr(minDepthIndex, command.length() - minDepthIndex);
+                std::string maxDepth = command.substr(maxDepthIndex, command.length() - maxDepthIndex);
+                for (int depth = std::stoi(minDepth); depth <= std::stoi(maxDepth); depth++)
+                {
+                    PerftInfo info = {};
+                    std::cout << "~ Running perft test with depth " << depth << "\n";
 
+                    U64 perftStartTime = std::time(nullptr) * 1000 + clock() * 1000 / CLOCKS_PER_SEC;
+                    perft(depth, info);
+                    U64 perftEndTime = std::time(nullptr) * 1000 + clock() * 1000 / CLOCKS_PER_SEC;
+                    U64 msElapsed = perftEndTime - perftStartTime;
+
+                    std::cout << "\t~ Depth " << depth << " results:\n";
+                    std::cout << "\t\t~ Time: " << msElapsed << "ms\n";
+                    std::cout << "\t\t~ kN/s: " << (double)info.totalNodes / (double)msElapsed << "\n";
+                    std::cout << "\t\t~ Leaf nodes: " << info.leafNodes << "\n";
+                    std::cout << "\t\t~ Nodes: " << info.totalNodes << "\n";
+                    std::cout << "\t\t~ Promotions: " << info.totalEnPassant << "\n";
+                    std::cout << "\t\t~ Captures: " << info.totalCaptures << "\n";
+                    std::cout << "\t\t~ En passant captures: " << info.totalEnPassant << "\n";
+                }
+                std::cout << "~ Perft test complete\n";
+                showReady();
+            }
         }
         else if (command == "uci")
         {
@@ -217,13 +249,39 @@ ____  __.           ))   `\_) .__
             showReady();
         }
     }
-    delete moveGenerator;
-    delete position;
     return 0;
 }
-
 
 int Cli::runUci()
 {
     return 0;
+}
+
+void Cli::perft(int depth, PerftInfo &info)
+{
+    moveGenerator.generateMoves();
+    if (!depth)
+    {
+        info.leafNodes += moveGenerator.moveList.size();
+        info.totalNodes += moveGenerator.moveList.size();
+        return;
+    }
+    info.totalNodes++;
+    const std::vector<Move> moveList = moveGenerator.moveList;
+    for (const Move move : moveList)
+    {
+        if (getPieceCaptured(move) != NULL_PIECE)
+        {
+            info.totalCaptures++;
+        }
+        if (getMoveType(move) > 2)
+        {
+            info.totalPromotions++;
+        }
+
+        //std::cout << std::string(5 - depth, ' ') << moveList.size() << " " << squareToNotation(getSquareFrom(move)) << squareToNotation(getSquareTo(move)) << "\n";
+        position.makeMove(move);
+        perft(depth - 1, info);
+        position.unMakeMove(move);
+    }
 }

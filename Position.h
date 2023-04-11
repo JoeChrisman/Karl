@@ -30,7 +30,7 @@ public:
 
     void printPosition(bool isWhiteOnBottom) const;
     void makeMove(const Move move);
-    void unMakeMove();
+    void unMakeMove(const Move move);
 
     struct Rights
     {

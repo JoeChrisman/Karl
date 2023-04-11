@@ -16,8 +16,8 @@ namespace Cli
 
     extern bool isWhiteOnBottom;
 
-    extern Position* position;
-    extern MoveGenerator* moveGenerator;
+    extern Position position;
+    extern MoveGenerator moveGenerator;
 
     void showReady();
     int notationToFile(const char fileChar);
@@ -27,6 +27,16 @@ namespace Cli
     Square notationToSquare(const std::string& notation);
     std::string squareToNotation(const Square square);
     std::string moveToNotation(const Move move);
+
+    struct PerftInfo
+    {
+        U64 leafNodes;
+        U64 totalNodes;
+        U64 totalCaptures;
+        U64 totalEnPassant;
+        U64 totalPromotions;
+    };
+    void perft(int depth, PerftInfo& info);
 
 };
 

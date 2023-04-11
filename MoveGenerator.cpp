@@ -5,9 +5,10 @@
 #include "MoveGenerator.h"
 
 MoveGenerator::MoveGenerator(Position& _position) :
-        position(_position)
+position(_position)
 {
     resolverSquares = FULL_BOARD;
+    safeSquares = FULL_BOARD;
     cardinalPins = EMPTY_BOARD;
     ordinalPins = EMPTY_BOARD;
 
@@ -148,6 +149,7 @@ void MoveGenerator::generate()
     updateResolverSquares<isWhite>();
     updatePins<isWhite, true>();
     updatePins<isWhite, false>();
+
     genPawnMoves<isWhite, quiets>();
     genKnightMoves<isWhite, quiets>();
     genKingMoves<isWhite, quiets>();
