@@ -5,34 +5,24 @@
 #ifndef KARL_POSITION_H
 #define KARL_POSITION_H
 
-#include "Definitions.h"
+#include "Defs.h"
 
-class Position
+namespace Position
 {
+    void init(const std::string& fen);
 
-public:
-    Position() = default;
-    explicit Position(const std::string& fen);
-
-    std::vector<U64> bitboards = std::vector<U64>(12, EMPTY_BOARD);
-    std::vector<Piece> pieces = std::vector<Piece>(64, NULL_PIECE);
-
-    U64 emptySquares;
-    U64 occupiedSquares;
-    U64 whitePieces;
-    U64 blackPieces;
-    U64 whiteOrEmpty;
-    U64 blackOrEmpty;
+    extern std::vector<U64> bitboards;
+    extern std::vector<Piece> pieces;
 
     inline void updateBitboards();
+    extern U64 emptySquares;
+    extern U64 occupiedSquares;
+    extern U64 whitePieces;
+    extern U64 blackPieces;
+    extern U64 whiteOrEmpty;
+    extern U64 blackOrEmpty;
 
-    bool isWhiteToMove = true;
-
-    void printPosition(bool isWhiteOnBottom) const;
-    void makeMove(const Move move);
-    void unMakeMove(const Move move);
-
-    struct Rights
+    extern struct Rights
     {
         U64 enPassant;
         bool whiteLongCastle;
@@ -41,13 +31,13 @@ public:
         bool blackShortCastle;
         int currentPly;
         int lastIrreversiblePly;
-    };
+        bool isWhiteToMove;
+    } rights;
 
-private:
+    void makeMove(const Move move);
+    void unMakeMove(const Move move);
 
-    Piece getPieceByChar(const char piece) const;
-    std::string getUnicodePiece(const Piece piece) const;
-
+    void print(bool isWhiteOnBottom);
 };
 
 

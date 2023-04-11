@@ -5,55 +5,91 @@
 #include <ctime>
 #include "Cli.h"
 
-Position Cli::position = Position(INITIAL_FEN);
-MoveGenerator Cli::moveGenerator = MoveGenerator(Cli::position);
-
-bool Cli::isWhiteOnBottom = true;
-
-void Cli::showReady()
+namespace
 {
-    std::cout << "\033[;35m> \033[0m";
+    bool isWhiteOnBottom = true;
+
+    void showReady()
+    {
+        std::cout << "\033[;35m> \033[0m";
+    }
+
+    int notationToFile(const char fileChar)
+    {
+        return (int)(fileChar - 'a');
+    }
+
+    int notationToRank(const char rankChar)
+    {
+        return (int)(rankChar - '1');
+    }
+
+    char fileToNotation(const int file)
+    {
+        return (char)(file + 'a');
+    }
+
+    char rankToNotation(const int rank)
+    {
+        return (char)('1' + rank);
+    }
+
+    Square notationToSquare(const std::string& notation)
+    {
+        return getSquare(notationToRank(notation[1]),
+                         notationToFile(notation[0]));
+    }
+
+    std::string squareToNotation(const Square square)
+    {
+        return std::string{
+                fileToNotation(getFile(square)),
+                rankToNotation((getRank(square)))};
+    }
+
+    std::string moveToNotation(const Move move)
+    {
+        return squareToNotation(getSquareFrom(move)) + squareToNotation(getSquareTo(move));
+    }
+
+    struct PerftInfo
+    {
+        U64 leafNodes;
+        U64 totalNodes;
+        U64 totalCaptures;
+        U64 totalEnPassant;
+        U64 totalPromotions;
+    };
+
+    void perft(int depth, PerftInfo &info)
+    {
+        Gen::genMoves();
+        if (!depth)
+        {
+            info.leafNodes += Gen::moveList.size();
+            info.totalNodes += Gen::moveList.size();
+            return;
+        }
+        info.totalNodes++;
+        const std::vector<Move> moveList = Gen::moveList;
+        for (const Move move : moveList)
+        {
+            if (getPieceCaptured(move) != NULL_PIECE)
+            {
+                info.totalCaptures++;
+            }
+            if (getMoveType(move) > 2)
+            {
+                info.totalPromotions++;
+            }
+            Position::makeMove(move);
+            perft(depth - 1, info);
+            Position::unMakeMove(move);
+        }
+    }
 }
 
-int Cli::notationToFile(const char fileChar)
-{
-    return (int)(fileChar - 'a');
-}
-
-int Cli::notationToRank(const char rankChar)
-{
-    return (int)(rankChar - '1');
-}
-
-char Cli::fileToNotation(const int file)
-{
-    return (char)(file + 'a');
-}
-
-char Cli::rankToNotation(const int rank)
-{
-    return (char)('1' + rank);
-}
-
-Square Cli::notationToSquare(const std::string& notation)
-{
-    return getSquare(notationToRank(notation[1]),
-                     notationToFile(notation[0]));
-}
-
-std::string Cli::squareToNotation(const Square square)
-{
-    return std::string{
-        fileToNotation(getFile(square)),
-        rankToNotation((getRank(square)))};
-}
-
-std::string Cli::moveToNotation(const Move move)
-{
-    return squareToNotation(getSquareFrom(move)) + squareToNotation(getSquareTo(move));
-}
-
-int Cli::run()
+int Cli::runKarlCli()
 {
     std::cout << R"(
                       (\=,
@@ -120,17 +156,18 @@ ____  __.           ))   `\_) .__
             {
                 fen = command.substr(5, std::string::npos);
             }
+            Position::init(fen);
             std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
             showReady();
         }
         else if (command == "show")
         {
-            position.printPosition(isWhiteOnBottom);
+            Position::print(isWhiteOnBottom);
             showReady();
         }
         else if (command == "who")
         {
-            if (position.isWhiteToMove)
+            if (Position::rights.isWhiteToMove)
             {
                 std::cout << "~ It is white to move\n";
 
@@ -146,9 +183,9 @@ ____  __.           ))   `\_) .__
             std::string notation = command.substr(9, std::string::npos);
             Square from = notationToSquare(notation.substr(0, 2));
             Square to = notationToSquare(notation.substr(2, 2));
-            moveGenerator.generateMoves();
+            Gen::genMoves();
             Move legalMove = NULL_MOVE;
-            for (const Move move : moveGenerator.moveList)
+            for (const Move move : Gen::moveList)
             {
                 if (getSquareFrom(move) == from && getSquareTo(move) == to)
                 {
@@ -158,7 +195,7 @@ ____  __.           ))   `\_) .__
             }
             if (legalMove != NULL_MOVE)
             {
-                position.makeMove(legalMove);
+                Position::makeMove(legalMove);
                 std::cout << "~ Successfully played move \"" << notation << "\"\n";
             }
             else
@@ -170,9 +207,9 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "moves")
         {
-            moveGenerator.generateMoves();
-            std::cout << "~ There are " << moveGenerator.moveList.size() << " legal moves\n";
-            for (Move move : moveGenerator.moveList)
+            Gen::genMoves();
+            std::cout << "~ There are " << Gen::moveList.size() << " legal moves\n";
+            for (Move move : Gen::moveList)
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
@@ -180,9 +217,9 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "captures")
         {
-            moveGenerator.generateCaptures();
-            std::cout << "~ There are " << moveGenerator.moveList.size() << " legal captures\n";
-            for (Move move : moveGenerator.moveList)
+            Gen::genCaptures();
+            std::cout << "~ There are " << Gen::moveList.size() << " legal captures\n";
+            for (Move move : Gen::moveList)
             {
                 std::cout << "\t~ " << moveToNotation(move) << "\n";
             }
@@ -196,8 +233,8 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "pass")
         {
-            position.isWhiteToMove = !position.isWhiteToMove;
-            std::cout << "~ Successfully gave " << (position.isWhiteToMove ? "white" : "black") << " the move\n";
+            Position::rights.isWhiteToMove = !Position::rights.isWhiteToMove;
+            std::cout << "~ Successfully gave " << (Position::rights.isWhiteToMove ? "white" : "black") << " the move\n";
             showReady();
         }
         else if (command.substr(0, 5) == "perft")
@@ -217,17 +254,22 @@ ____  __.           ))   `\_) .__
                 std::string maxDepth = command.substr(maxDepthIndex, command.length() - maxDepthIndex);
                 for (int depth = std::stoi(minDepth); depth <= std::stoi(maxDepth); depth++)
                 {
+                    timespec start = {};
+                    timespec end = {};
+
                     PerftInfo info = {};
                     std::cout << "~ Running perft test with depth " << depth << "\n";
-
-                    U64 perftStartTime = std::time(nullptr) * 1000 + clock() * 1000 / CLOCKS_PER_SEC;
+                    clock_gettime(CLOCK_REALTIME, &start);
                     perft(depth, info);
-                    U64 perftEndTime = std::time(nullptr) * 1000 + clock() * 1000 / CLOCKS_PER_SEC;
-                    U64 msElapsed = perftEndTime - perftStartTime;
+                    clock_gettime(CLOCK_REALTIME, &end);
+
+                    double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
+                    double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
+                    double msElapsed = endMillis - startMillis;
 
                     std::cout << "\t~ Depth " << depth << " results:\n";
                     std::cout << "\t\t~ Time: " << msElapsed << "ms\n";
-                    std::cout << "\t\t~ kN/s: " << (double)info.totalNodes / (double)msElapsed << "\n";
+                    std::cout << "\t\t~ kN/s: " << (double)info.totalNodes / msElapsed << "\n";
                     std::cout << "\t\t~ Leaf nodes: " << info.leafNodes << "\n";
                     std::cout << "\t\t~ Nodes: " << info.totalNodes << "\n";
                     std::cout << "\t\t~ Promotions: " << info.totalEnPassant << "\n";
@@ -240,7 +282,7 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "uci")
         {
-            runUci();
+            runKarlUci();
         }
         else
         {
@@ -252,36 +294,7 @@ ____  __.           ))   `\_) .__
     return 0;
 }
 
-int Cli::runUci()
+int Cli::runKarlUci()
 {
     return 0;
-}
-
-void Cli::perft(int depth, PerftInfo &info)
-{
-    moveGenerator.generateMoves();
-    if (!depth)
-    {
-        info.leafNodes += moveGenerator.moveList.size();
-        info.totalNodes += moveGenerator.moveList.size();
-        return;
-    }
-    info.totalNodes++;
-    const std::vector<Move> moveList = moveGenerator.moveList;
-    for (const Move move : moveList)
-    {
-        if (getPieceCaptured(move) != NULL_PIECE)
-        {
-            info.totalCaptures++;
-        }
-        if (getMoveType(move) > 2)
-        {
-            info.totalPromotions++;
-        }
-
-        //std::cout << std::string(5 - depth, ' ') << moveList.size() << " " << squareToNotation(getSquareFrom(move)) << squareToNotation(getSquareTo(move)) << "\n";
-        position.makeMove(move);
-        perft(depth - 1, info);
-        position.unMakeMove(move);
-    }
 }

@@ -4,7 +4,94 @@
 
 #include "Position.h"
 
-Position::Position(const std::string& fen)
+std::vector<U64> Position::bitboards = std::vector<U64>(12, EMPTY_BOARD);
+std::vector<Piece> Position::pieces = std::vector<Piece>(64, NULL_PIECE);
+
+U64 Position::emptySquares = EMPTY_BOARD;
+U64 Position::occupiedSquares = EMPTY_BOARD;
+U64 Position::whitePieces = EMPTY_BOARD;
+U64 Position::blackPieces = EMPTY_BOARD;
+U64 Position::whiteOrEmpty = EMPTY_BOARD;
+U64 Position::blackOrEmpty = EMPTY_BOARD;
+
+Position::Rights Position::rights = {};
+
+namespace
+{
+    std::string getUnicodePiece(const Piece piece)
+    {
+        switch (piece)
+        {
+            case WHITE_PAWN: return "\u265F";
+            case WHITE_KNIGHT: return "\u265E";
+            case WHITE_BISHOP: return "\u265D";
+            case WHITE_ROOK: return "\u265C";
+            case WHITE_QUEEN: return "\u265B";
+            case WHITE_KING: return "\u265A";
+            case BLACK_PAWN: return "\u2659";
+            case BLACK_KNIGHT: return "\u2658";
+            case BLACK_BISHOP: return "\u2657";
+            case BLACK_ROOK: return "\u2656";
+            case BLACK_QUEEN: return "\u2655";
+            case BLACK_KING: return "\u2654";
+            default: return "";
+        }
+    }
+    Piece getPieceByChar(const char letter)
+    {
+        switch (letter)
+        {
+            case 'P': return WHITE_PAWN;
+            case 'N': return WHITE_KNIGHT;
+            case 'B': return WHITE_BISHOP;
+            case 'R': return WHITE_ROOK;
+            case 'Q': return WHITE_QUEEN;
+            case 'K': return WHITE_KING;
+            case 'p': return BLACK_PAWN;
+            case 'n': return BLACK_KNIGHT;
+            case 'b': return BLACK_BISHOP;
+            case 'r': return BLACK_ROOK;
+            case 'q': return BLACK_QUEEN;
+            case 'k': return BLACK_KING;
+            default: return NULL_PIECE;
+        }
+    }
+}
+
+void Position::print(bool isWhiteOnBottom)
+{
+    char rank = isWhiteOnBottom ? '8' : '1';
+    for (Square square = isWhiteOnBottom ? A8 : H1;
+         square >= A8 && square <= H1;
+         isWhiteOnBottom ? square++ : square--)
+    {
+        if (getBoard(square) & FILE_MASKS[isWhiteOnBottom ? A_FILE : H_FILE])
+        {
+            std::cout << "\n" << rank << "   ";
+            rank += isWhiteOnBottom ? -1 : 1;
+        }
+        Piece piece = Position::pieces[square];
+        if (piece != NULL_PIECE)
+        {
+            std::cout << " " << getUnicodePiece(piece) << " ";
+        }
+        else
+        {
+            std::cout << " . ";
+        }
+    }
+    std::cout << "\n\n    ";
+    for (char file = isWhiteOnBottom ? 'a' : 'h';
+         file >= 'a' && file <= 'h';
+         isWhiteOnBottom ? file++ : file--)
+    {
+        std::cout << " " << file << " ";
+    }
+    std::cout << "\n";
+}
+
+
+void Position::init(const std::string& fen)
 {
     bitboards = std::vector<U64>(12, EMPTY_BOARD);
     pieces = std::vector<Piece>(64, NULL_PIECE);
@@ -83,7 +170,7 @@ void Position::makeMove(const Move move)
         bitboards[captured] ^= getBoard(to);
     }
 
-    isWhiteToMove = !isWhiteToMove;
+    rights.isWhiteToMove = !rights.isWhiteToMove;
     updateBitboards();
 }
 
@@ -110,79 +197,7 @@ void Position::unMakeMove(const Move move)
         bitboards[captured] ^= getBoard(to);
     }
 
-    isWhiteToMove = !isWhiteToMove;
+    rights.isWhiteToMove = !rights.isWhiteToMove;
     updateBitboards();
 }
 
-void Position::printPosition(bool isWhiteOnBottom) const
-{
-    char rank = isWhiteOnBottom ? '8' : '1';
-    for (Square square = isWhiteOnBottom ? A8 : H1;
-            square >= A8 && square <= H1;
-            isWhiteOnBottom ? square++ : square--)
-    {
-        if (getBoard(square) & FILE_MASKS[isWhiteOnBottom ? A_FILE : H_FILE])
-        {
-            std::cout << "\n" << rank << "   ";
-            rank += isWhiteOnBottom ? -1 : 1;
-        }
-        Piece piece = pieces[square];
-        if (piece != NULL_PIECE)
-        {
-            std::cout << " " << getUnicodePiece(piece) << " ";
-        }
-        else
-        {
-            std::cout << " . ";
-        }
-    }
-    std::cout << "\n\n    ";
-    for (char file = isWhiteOnBottom ? 'a' : 'h';
-        file >= 'a' && file <= 'h';
-        isWhiteOnBottom ? file++ : file--)
-    {
-        std::cout << " " << file << " ";
-    }
-    std::cout << "\n";
-
-}
-
-std::string Position::getUnicodePiece(const Piece piece) const
-{
-    switch (piece)
-    {
-        case WHITE_PAWN: return "\u265F";
-        case WHITE_KNIGHT: return "\u265E";
-        case WHITE_BISHOP: return "\u265D";
-        case WHITE_ROOK: return "\u265C";
-        case WHITE_QUEEN: return "\u265B";
-        case WHITE_KING: return "\u265A";
-        case BLACK_PAWN: return "\u2659";
-        case BLACK_KNIGHT: return "\u2658";
-        case BLACK_BISHOP: return "\u2657";
-        case BLACK_ROOK: return "\u2656";
-        case BLACK_QUEEN: return "\u2655";
-        case BLACK_KING: return "\u2654";
-        default: return "";
-    }
-}
-
-Piece Position::getPieceByChar(const char letter) const
-{
-    switch (letter)
-    {
-        case 'P': return WHITE_PAWN;
-        case 'N': return WHITE_KNIGHT;
-        case 'B': return WHITE_BISHOP;
-        case 'R': return WHITE_ROOK;
-        case 'Q': return WHITE_QUEEN;
-        case 'K': return WHITE_KING;
-        case 'p': return BLACK_PAWN;
-        case 'n': return BLACK_KNIGHT;
-        case 'b': return BLACK_BISHOP;
-        case 'r': return BLACK_ROOK;
-        case 'q': return BLACK_QUEEN;
-        case 'k': return BLACK_KING;
-        default: return NULL_PIECE;
-    }
-}

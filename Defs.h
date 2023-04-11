@@ -2,8 +2,8 @@
 // Created by Joe Chrisman on 4/5/23.
 //
 
-#ifndef KARL_DEFINITIONS_H
-#define KARL_DEFINITIONS_H
+#ifndef KARL_DEFS_H
+#define KARL_DEFS_H
 
 #include <string>
 #include <iostream>
@@ -17,7 +17,6 @@ typedef int Move;
 
 const std::string VERSION = "0.2 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
 
@@ -86,16 +85,6 @@ enum
     BLACK_KING,
     NULL_PIECE
 };
-
-inline bool isWhite(Piece piece)
-{
-    return piece < 6;
-}
-
-inline bool isBlack(Piece piece)
-{
-    return !isWhite(piece) && piece != NULL_PIECE;
-}
 
 enum
 {
@@ -293,24 +282,5 @@ Square northWest(const Square square)
     return square - 9 * distance;
 }
 
-inline void printBitboard(const U64 board)
-{
-    for (Square square = A8; square <= H1; square++)
-    {
-        if (FILE_MASKS[A_FILE] & getBoard(square))
-        {
-            std::cout << "\n";
-        }
-        if (board & getBoard(square))
-        {
-            std::cout << " 1 ";
-        }
-        else
-        {
-            std::cout << " . ";
-        }
-    }
-    std::cout << "\n";
-}
 
-#endif //KARL_DEFINITIONS_H
+#endif //KARL_DEFS_H
