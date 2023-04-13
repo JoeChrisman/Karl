@@ -13,15 +13,11 @@
 typedef unsigned long long U64;
 typedef int Piece;
 typedef int Square;
-typedef int Move;
 
 const std::string VERSION = "0.2 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
-
-const Move NULL_MOVE = 0;
-const Square NULL_SQUARE = -1;
 
 constexpr U64 FILE_MASKS[8] = {
         0x0101010101010101,
@@ -97,56 +93,6 @@ enum
     A2, B2, C2, D2, E2, F2, G2, H2,
     A1, B1, C1, D1, E1, F1, G1, H1
 };
-
-enum MoveType
-{
-    NORMAL,
-    CASTLE,
-    EN_PASSANT,
-    KNIGHT_PROMOTION,
-    BISHOP_PROMOTION,
-    ROOK_PROMOTION,
-    QUEEN_PROMOTION
-};
-
-inline Move createMove(
-        const MoveType moveType,
-        const Piece moved,
-        const Piece captured,
-        const Square from,
-        const Square to)
-{
-    return  moveType << 29
-                | moved << 25
-                | captured << 21
-                | from << 15
-                | to << 9;
-}
-
-inline MoveType getMoveType(const Move move)
-{
-    return (MoveType)((move & 0b11100000000000000000000000000000) >> 29);
-}
-
-inline Piece getPieceMoved(const Move move)
-{
-    return (Piece)((move & 0b00011110000000000000000000000000) >> 25);
-}
-
-inline Piece getPieceCaptured(const Move move)
-{
-    return (Piece)((move & 0b00000001111000000000000000000000) >> 21);
-}
-
-inline Square getSquareFrom(const Move move)
-{
-    return (Square)((move & 0b00000000000111111000000000000000) >> 15);
-}
-
-inline Square getSquareTo(const Move move)
-{
-    return (Square)((move & 0b00000000000000000111111000000000) >> 9);
-}
 
 inline U64 getBoard(const Square square)
 {

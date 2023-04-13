@@ -7,4 +7,4 @@ project(Karl)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(Karl main.cpp Position.cpp Position.h Defs.h Gen.cpp Gen.h Cli.cpp Cli.h Magics.cpp Magics.h Search.cpp Search.h Eval.cpp Eval.h)
+add_executable(Karl main.cpp Position.cpp Position.h Defs.h Gen.cpp Gen.h Cli.cpp Cli.h Magics.cpp Magics.h Search.cpp Search.h Eval.cpp Eval.h Moves.h Moves.cpp Notation.cpp Notation.h)

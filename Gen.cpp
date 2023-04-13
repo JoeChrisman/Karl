@@ -6,18 +6,15 @@
 
 std::vector<Move> Gen::moveList;
 
+U64 Gen::resolverSquares = EMPTY_BOARD;
+U64 Gen::safeSquares = EMPTY_BOARD;
+U64 Gen::cardinalPins = EMPTY_BOARD;
+U64 Gen::ordinalPins = EMPTY_BOARD;
+
 namespace
 {
     U64 knightMoves[64];
     U64 kingMoves[64];
-
-    // squares that resolve a check
-    U64 resolverSquares;
-    // squares that are not attacked by our opponent
-    U64 safeSquares;
-    // squares along pins
-    U64 cardinalPins;
-    U64 ordinalPins;
 
     void initKnightMoves()
     {
@@ -117,33 +114,32 @@ namespace
     template<bool isWhite>
     void genPromotions(const Square from, const Square to, const Piece captured)
     {
-        for (int type = KNIGHT_PROMOTION; type <= QUEEN_PROMOTION; type++)
+        static constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
+
+        for (int promoted = isWhite ? WHITE_KNIGHT : BLACK_KNIGHT;
+             promoted <= (isWhite ? WHITE_QUEEN : BLACK_QUEEN);
+             promoted++)
         {
-            Gen::moveList.emplace_back(createMove(
-                    (MoveType)type,
-                    isWhite ? WHITE_PAWN : BLACK_PAWN,
-                    captured,
-                    from,
-                    to
-            ));
+            Gen::moveList.emplace_back(
+                    Moves::createMove(from, to, pieceMoving, captured, promoted));
         }
     }
 
     template<bool isWhite, bool quiets>
     void genPawnMoves()
     {
-        constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
-        constexpr U64 promotionRank = RANK_MASKS[isWhite ? EIGHTH_RANK : FIRST_RANK];
-        constexpr U64 beforePromotionRank = RANK_MASKS[isWhite ? SEVENTH_RANK : SECOND_RANK];
+        static constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
+        static constexpr U64 promotionRank = RANK_MASKS[isWhite ? EIGHTH_RANK : FIRST_RANK];
+        static constexpr U64 beforePromotionRank = RANK_MASKS[isWhite ? SEVENTH_RANK : SECOND_RANK];
 
         const U64 pawns = Position::bitboards[pieceMoving];
-        const U64 unPinnedPawns = pawns & ~(cardinalPins | ordinalPins);
+        const U64 unPinnedPawns = pawns & ~(Gen::cardinalPins | Gen::ordinalPins);
         // TODO: test if putting all promotion generation in a branch will be faster
         // generate unpinned push-promotions
         U64 unpinnedPushPromotions = isWhite ? north(unPinnedPawns) : south(unPinnedPawns);
         unpinnedPushPromotions &= promotionRank;
         unpinnedPushPromotions &= Position::emptySquares;
-        unpinnedPushPromotions &= resolverSquares;
+        unpinnedPushPromotions &= Gen::resolverSquares;
         while (unpinnedPushPromotions)
         {
             const Square to = popFirstPiece(unpinnedPushPromotions);
@@ -162,8 +158,8 @@ namespace
         unpinnedWestCaptures &= isWhite ? Position::blackPieces : Position::whitePieces;
 
         // the captures must capture a checking piece
-        unpinnedEastCaptures &= resolverSquares;
-        unpinnedWestCaptures &= resolverSquares;
+        unpinnedEastCaptures &= Gen::resolverSquares;
+        unpinnedWestCaptures &= Gen::resolverSquares;
 
         // calculate unpinned capture-promotions
         U64 unpinnedEastCapturePromotions = unpinnedEastCaptures & promotionRank;
@@ -177,24 +173,16 @@ namespace
         while (unpinnedEastCaptures)
         {
             const Square to = popFirstPiece(unpinnedEastCaptures);
-            Gen::moveList.emplace_back(createMove(
-                    NORMAL,
-                    pieceMoving,
-                    Position::pieces[to],
-                    isWhite ? southWest(to) : northWest(to),
-                    to
-            ));
+            const Square from = isWhite ? southWest(to) : northWest(to);
+            Gen::moveList.emplace_back(
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
         }
         while (unpinnedWestCaptures)
         {
             const Square to = popFirstPiece(unpinnedWestCaptures);
-            Gen::moveList.emplace_back(createMove(
-                    NORMAL,
-                    pieceMoving,
-                    Position::pieces[to],
-                    isWhite ? southEast(to) : northEast(to),
-                    to
-            ));
+            const Square from = isWhite ? southEast(to) : northEast(to);
+            Gen::moveList.emplace_back(
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
         }
 
         // add unpinned capture-promotions
@@ -212,7 +200,7 @@ namespace
         }
 
         // TODO: test if putting pinned pawn capture generation in a branch will be faster
-        const U64 ordinalPinnedPawns = pawns & ordinalPins & ~cardinalPins;
+        const U64 ordinalPinnedPawns = pawns & Gen::ordinalPins & ~Gen::cardinalPins;
         // calculate pinned east and west captures
         U64 pinnedEastCaptures = isWhite ? northEast(ordinalPinnedPawns) : southEast(ordinalPinnedPawns);
         pinnedEastCaptures &= ~FILE_MASKS[A_FILE];
@@ -220,16 +208,16 @@ namespace
         pinnedWestCaptures &= ~FILE_MASKS[H_FILE];
 
         // we can only capture along the pin
-        pinnedEastCaptures &= ordinalPins;
-        pinnedWestCaptures &= ordinalPins;
+        pinnedEastCaptures &= Gen::ordinalPins;
+        pinnedWestCaptures &= Gen::ordinalPins;
 
         // make sure the pinned pawns are capturing the pinning piece
         pinnedEastCaptures &= isWhite ? Position::blackPieces : Position::whitePieces;
         pinnedWestCaptures &= isWhite ? Position::blackPieces : Position::whitePieces;
 
         // if there is a checking piece, no pinned capture can resolve it
-        pinnedEastCaptures &= resolverSquares;
-        pinnedWestCaptures &= resolverSquares;
+        pinnedEastCaptures &= Gen::resolverSquares;
+        pinnedWestCaptures &= Gen::resolverSquares;
 
         // isolate pinned capture-promotions
         U64 pinnedEastCapturePromotions = pinnedEastCaptures & promotionRank;
@@ -257,42 +245,80 @@ namespace
         while (pinnedEastCaptures)
         {
             const Square to = popFirstPiece(pinnedEastCaptures);
-            Gen::moveList.emplace_back(createMove(
-                    NORMAL,
-                    pieceMoving,
-                    Position::pieces[to],
-                    isWhite ? southWest(to) : northWest(to),
-                    to
-            ));
+            const Square from = isWhite ? southWest(to) : northWest(to);
+            Gen::moveList.emplace_back(
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
         }
         while (pinnedWestCaptures)
         {
             const Square to = popFirstPiece(pinnedWestCaptures);
-            Gen::moveList.emplace_back(createMove(
-                    NORMAL,
-                    pieceMoving,
-                    Position::pieces[to],
-                    isWhite ? southEast(to) : northEast(to),
-                    to
-            ));
+            const Square from = isWhite ? southEast(to) : northEast(to);
+            Gen::moveList.emplace_back(
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
+        }
+
+        if (Position::rights.enPassantFile != -1)
+        {
+            static constexpr Piece captured = isWhite ? BLACK_PAWN : WHITE_PAWN;
+            const U64 enPassantSquare = FILE_MASKS[Position::rights.enPassantFile] &
+                                        RANK_MASKS[isWhite ? SIXTH_RANK : THIRD_RANK];
+
+            U64 eastEnPassant = isWhite ? northEast(unPinnedPawns) : southEast(unPinnedPawns);
+            eastEnPassant &= ~FILE_MASKS[A_FILE];
+            eastEnPassant &= enPassantSquare;
+
+            U64 westEnPassant = isWhite ? northWest(unPinnedPawns) : southWest(unPinnedPawns);
+            westEnPassant &= ~FILE_MASKS[H_FILE];
+            westEnPassant &= enPassantSquare;
+
+            U64 eastPinnedEnPassant = isWhite ? northEast(ordinalPinnedPawns) : southEast(ordinalPinnedPawns);
+            eastPinnedEnPassant &= ~FILE_MASKS[A_FILE];
+            eastPinnedEnPassant &= enPassantSquare;
+            eastPinnedEnPassant &= Gen::ordinalPins;
+            eastEnPassant |= eastPinnedEnPassant;
+
+            U64 westPinnedEnPassant = isWhite ? northWest(ordinalPinnedPawns) : southWest(ordinalPinnedPawns);
+            westPinnedEnPassant &= ~FILE_MASKS[H_FILE];
+            westPinnedEnPassant &= enPassantSquare;
+            westPinnedEnPassant &= Gen::ordinalPins;
+            westEnPassant |= westPinnedEnPassant;
+
+            const U64 enPassantResolvers = isWhite ? north(Gen::resolverSquares) : south(Gen::resolverSquares);
+            eastEnPassant &= enPassantResolvers;
+            westEnPassant &= enPassantResolvers;
+
+            if (eastEnPassant)
+            {
+                const Square to = getSquare(eastEnPassant);
+                const Square from = isWhite ? southWest(to) : northWest(to);
+                Gen::moveList.emplace_back(
+                        Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, captured));
+            }
+            if (westEnPassant)
+            {
+                const Square to = getSquare(westEnPassant);
+                const Square from = isWhite ? southEast(to) : northEast(to);
+                Gen::moveList.emplace_back(
+                        Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, captured));
+            }
         }
 
         // generate non-captures and non-promotions
         if constexpr (quiets)
         {
-            const U64 movablePawns = pawns & ~ordinalPins & ~beforePromotionRank;
+            const U64 movablePawns = pawns & ~Gen::ordinalPins & ~beforePromotionRank;
 
             // calculate cardinal pinned pawns
-            U64 pinnedPush1 = movablePawns & cardinalPins;
+            U64 pinnedPush1 = movablePawns & Gen::cardinalPins;
             // push the pinned pawns one square
             pinnedPush1 = isWhite ? north(pinnedPush1) : south(pinnedPush1);
             // we can only push onto empty squares
             pinnedPush1 &= Position::emptySquares;
             // don't break the pin
-            pinnedPush1 &= cardinalPins;
+            pinnedPush1 &= Gen::cardinalPins;
 
             // calculate unpinned pawns
-            U64 unpinnedPush1 = movablePawns & ~cardinalPins;
+            U64 unpinnedPush1 = movablePawns & ~Gen::cardinalPins;
             // push the unpinned pawns one square
             unpinnedPush1 = isWhite ? north(unpinnedPush1) : south(unpinnedPush1);
             // we can only push onto empty squares
@@ -301,28 +327,24 @@ namespace
             // calculate all one square pawn pushes
             U64 pushed1 = unpinnedPush1 | pinnedPush1;
             // we must resolve a check
-            pushed1 &= resolverSquares;
+            pushed1 &= Gen::resolverSquares;
 
             // add one square pawn pushes
             while (pushed1)
             {
                 const Square to = popFirstPiece(pushed1);
-                Gen::moveList.push_back(createMove(
-                        NORMAL,
-                        pieceMoving,
-                        NULL_PIECE,
-                        isWhite ? south(to) : north(to),
-                        to
-                ));
+                const Square from = isWhite ? south(to) : north(to);
+                Gen::moveList.emplace_back(
+                        Moves::createMove(from, to, pieceMoving, NULL_PIECE));
             }
 
-            constexpr U64 pushRank = RANK_MASKS[isWhite ? THIRD_RANK : SIXTH_RANK];
+            static constexpr U64 pushRank = RANK_MASKS[isWhite ? THIRD_RANK : SIXTH_RANK];
             // calculate two square cardinal pinned pawn pushes
             U64 pinnedPush2 = pinnedPush1 & pushRank;
             // push the pawns
             pinnedPush2 = isWhite ? north(pinnedPush2) : south(pinnedPush2);
             // don't break the pin
-            pinnedPush2 &= cardinalPins;
+            pinnedPush2 &= Gen::cardinalPins;
 
             // calculate two square pawn pushes
             U64 unpinnedPush2 = unpinnedPush1 & pushRank;
@@ -333,20 +355,15 @@ namespace
             // we can only push 2 squares if the second square is empty
             pushed2 &= Position::emptySquares;
             // we must resolve a check
-            pushed2 &= resolverSquares;
+            pushed2 &= Gen::resolverSquares;
 
             // add initial two square pawn pushes
             while (pushed2)
             {
                 Square to = popFirstPiece(pushed2);
                 Square from = isWhite ? south<2>(to) : north<2>(to);
-                Gen::moveList.emplace_back(createMove(
-                        NORMAL,
-                        pieceMoving,
-                        NULL_PIECE,
-                        from,
-                        to
-                ));
+                Gen::moveList.emplace_back(
+                        Moves::DOUBLE_PAWN_PUSH | Moves::createMove(from, to, pieceMoving, NULL_PIECE));
             }
         }
     }
@@ -354,9 +371,11 @@ namespace
     template<bool isWhite, bool quiets>
     void genKnightMoves()
     {
+        static constexpr Piece pieceMoving = isWhite ? WHITE_KNIGHT : BLACK_KNIGHT;
+
         U64 knights = Position::bitboards[isWhite ? WHITE_KNIGHT : BLACK_KNIGHT];
 
-        knights &= ~(ordinalPins | cardinalPins);
+        knights &= ~(Gen::ordinalPins | Gen::cardinalPins);
 
         while (knights)
         {
@@ -370,17 +389,12 @@ namespace
             {
                 moves &= (isWhite ? Position::blackPieces : Position::whitePieces);
             }
-            moves &= resolverSquares;
+            moves &= Gen::resolverSquares;
             while (moves)
             {
                 Square to = popFirstPiece(moves);
-                Gen::moveList.emplace_back(createMove(
-                        NORMAL,
-                        isWhite ? WHITE_KNIGHT : BLACK_KNIGHT,
-                        Position::pieces[to],
-                        from,
-                        to
-                ));
+                Gen::moveList.emplace_back(
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
             }
         }
     }
@@ -405,13 +419,12 @@ namespace
     template<bool isWhite, bool quiets>
     void genBishopMoves()
     {
-        U64 bishops = Position::bitboards[isWhite ? WHITE_BISHOP : BLACK_BISHOP];
+        static constexpr Piece pieceMoving = isWhite ? WHITE_BISHOP : BLACK_BISHOP;
 
-        bishops &= ~cardinalPins;
-
+        U64 bishops = Position::bitboards[pieceMoving] & ~Gen::cardinalPins;
         while (bishops)
         {
-            Square from = popFirstPiece(bishops);
+            const Square from = popFirstPiece(bishops);
             U64 moves = getSlidingMoves<false>(from);
             if constexpr (quiets)
             {
@@ -421,21 +434,16 @@ namespace
             {
                 moves &= isWhite ? Position::blackPieces : Position::whitePieces;
             }
-            moves &= resolverSquares;
-            if (getBoard(from) & ordinalPins)
+            moves &= Gen::resolverSquares;
+            if (getBoard(from) & Gen::ordinalPins)
             {
-                moves &= ordinalPins;
+                moves &= Gen::ordinalPins;
             }
             while (moves)
             {
-                Square to = popFirstPiece(moves);
-                Gen::moveList.emplace_back(createMove(
-                        NORMAL,
-                        isWhite ? WHITE_BISHOP : BLACK_BISHOP,
-                        Position::pieces[to],
-                        from,
-                        to
-                ));
+                const Square to = popFirstPiece(moves);
+                Gen::moveList.emplace_back(
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
             }
         }
     }
@@ -443,13 +451,12 @@ namespace
     template<bool isWhite, bool quiets>
     void genRookMoves()
     {
-        U64 rooks = Position::bitboards[isWhite ? WHITE_ROOK : BLACK_ROOK];
+        static constexpr Piece pieceMoving = isWhite ? WHITE_ROOK : BLACK_ROOK;
 
-        rooks &= ~ordinalPins;
-
+        U64 rooks = Position::bitboards[pieceMoving] & ~Gen::ordinalPins;
         while (rooks)
         {
-            Square from = popFirstPiece(rooks);
+            const Square from = popFirstPiece(rooks);
             U64 moves = getSlidingMoves<true>(from);
             if constexpr (quiets)
             {
@@ -459,21 +466,16 @@ namespace
             {
                 moves &= isWhite ? Position::blackPieces : Position::whitePieces;
             }
-            moves &= resolverSquares;
-            if (getBoard(from) & cardinalPins)
+            moves &= Gen::resolverSquares;
+            if (getBoard(from) & Gen::cardinalPins)
             {
-                moves &= cardinalPins;
+                moves &= Gen::cardinalPins;
             }
             while (moves)
             {
-                Square to = popFirstPiece(moves);
-                Gen::moveList.emplace_back(createMove(
-                        NORMAL,
-                        isWhite ? WHITE_ROOK : BLACK_ROOK,
-                        Position::pieces[to],
-                        from,
-                        to
-                ));
+                const Square to = popFirstPiece(moves);
+                Gen::moveList.emplace_back(
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
             }
         }
     }
@@ -481,26 +483,27 @@ namespace
     template<bool isWhite, bool quiets>
     void genQueenMoves()
     {
-        U64 queens = Position::bitboards[isWhite ? WHITE_QUEEN : BLACK_QUEEN];
+        static constexpr Piece pieceMoving = isWhite ? WHITE_QUEEN : BLACK_QUEEN;
+        U64 queens = Position::bitboards[pieceMoving];
         U64 moves = EMPTY_BOARD;
         while (queens)
         {
-            Square from = popFirstPiece(queens);
+            const Square from = popFirstPiece(queens);
             U64 queen = getBoard(from);
-            if (queen & ~cardinalPins)
+            if (queen & ~Gen::cardinalPins)
             {
                 moves |= getSlidingMoves<false>(from);
-                if (queen & ordinalPins)
+                if (queen & Gen::ordinalPins)
                 {
-                    moves &= ordinalPins;
+                    moves &= Gen::ordinalPins;
                 }
             }
-            if (queen & ~ordinalPins)
+            if (queen & ~Gen::ordinalPins)
             {
                 moves |= getSlidingMoves<true>(from);
-                if (queen & cardinalPins)
+                if (queen & Gen::cardinalPins)
                 {
-                    moves &= cardinalPins;
+                    moves &= Gen::cardinalPins;
                 }
             }
             if constexpr (quiets)
@@ -511,17 +514,12 @@ namespace
             {
                 moves &= isWhite ? Position::blackPieces : Position::whitePieces;
             }
-            moves &= resolverSquares;
+            moves &= Gen::resolverSquares;
             while (moves)
             {
-                Square to = popFirstPiece(moves);
-                Gen::moveList.push_back(createMove(
-                        NORMAL,
-                        isWhite ? WHITE_QUEEN : BLACK_QUEEN,
-                        Position::pieces[to],
-                        from,
-                        to
-                ));
+                const Square to = popFirstPiece(moves);
+                Gen::moveList.push_back(
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
             }
         }
     }
@@ -529,9 +527,9 @@ namespace
     template<bool isWhite, bool quiets>
     void genKingMoves()
     {
-        const Square from = getSquare(Position::bitboards[isWhite ? WHITE_KING : BLACK_KING]);
-        U64 moves = kingMoves[from];
-        moves &= safeSquares;
+        static constexpr Piece pieceMoving = isWhite ? WHITE_KING : BLACK_KING;
+        const Square from = getSquare(Position::bitboards[pieceMoving]);
+        U64 moves = kingMoves[from] & Gen::safeSquares;
         if constexpr (quiets)
         {
             moves &= (isWhite ? Position::blackOrEmpty : Position::whiteOrEmpty);
@@ -542,14 +540,9 @@ namespace
         }
         while (moves)
         {
-            Square to = popFirstPiece(moves);
-            Gen::moveList.push_back(createMove(
-                    NORMAL,
-                    isWhite ? WHITE_KING : BLACK_KING,
-                    Position::pieces[to],
-                    from,
-                    to
-            ));
+            const Square to = popFirstPiece(moves);
+            Gen::moveList.push_back(
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
         }
     }
 
@@ -562,14 +555,14 @@ namespace
         const U64 enemyKing = Position::bitboards[isWhite ? BLACK_KING : WHITE_KING];
         Position::occupiedSquares ^= king;
 
-        U64 cardinalAttackers = Position::bitboards[isWhite ? BLACK_ROOK : WHITE_ROOK] |
-                Position::bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+        U64 cardinalAttackers = Position::bitboards[isWhite ? BLACK_ROOK : WHITE_ROOK];
+        U64 ordinalAttackers = Position::bitboards[isWhite ? BLACK_BISHOP : WHITE_BISHOP];
+        cardinalAttackers |= Position::bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+        ordinalAttackers |= Position::bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
         while (cardinalAttackers)
         {
             attackedSquares |= getSlidingMoves<true>(popFirstPiece(cardinalAttackers));
         }
-        U64 ordinalAttackers = Position::bitboards[isWhite ? BLACK_BISHOP : WHITE_BISHOP] |
-                               Position::bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
         while (ordinalAttackers)
         {
             attackedSquares |= getSlidingMoves<false>(popFirstPiece(ordinalAttackers));
@@ -592,7 +585,7 @@ namespace
 
         attackedSquares |= kingMoves[getSquare(enemyKing)];
 
-        safeSquares = ~attackedSquares;
+        Gen::safeSquares = ~attackedSquares;
     }
 
     template<bool isWhite>
@@ -625,27 +618,27 @@ namespace
             {
                 if (cardinalAttackers)
                 {
-                    resolverSquares = cardinalAttacks & getSlidingMoves<true>(getSquare(attackers));
-                    resolverSquares |= attackers;
+                    Gen::resolverSquares = cardinalAttacks & getSlidingMoves<true>(getSquare(attackers));
+                    Gen::resolverSquares |= attackers;
                 }
                 else if (ordinalAttackers)
                 {
-                    resolverSquares = ordinalAttacks & getSlidingMoves<false>(getSquare(attackers));
-                    resolverSquares |= attackers;
+                    Gen::resolverSquares = ordinalAttacks & getSlidingMoves<false>(getSquare(attackers));
+                    Gen::resolverSquares |= attackers;
                 }
                 else
                 {
-                    resolverSquares = attackers;
+                    Gen::resolverSquares = attackers;
                 }
             }
             else
             {
-                resolverSquares = EMPTY_BOARD;
+                Gen::resolverSquares = EMPTY_BOARD;
             }
         }
         else
         {
-            resolverSquares = FULL_BOARD;
+            Gen::resolverSquares = FULL_BOARD;
         }
     }
 
@@ -654,11 +647,11 @@ namespace
     {
         if constexpr (isCardinal)
         {
-            cardinalPins = EMPTY_BOARD;
+            Gen::cardinalPins = EMPTY_BOARD;
         }
         else
         {
-            ordinalPins = EMPTY_BOARD;
+            Gen::ordinalPins = EMPTY_BOARD;
         }
 
         const Square king = getSquare(Position::bitboards[isWhite ? WHITE_KING : BLACK_KING]);
@@ -690,11 +683,11 @@ namespace
 
             if constexpr (isCardinal)
             {
-                cardinalPins |= pin;
+                Gen::cardinalPins |= pin;
             }
             else
             {
-                ordinalPins |= pin;
+                Gen::ordinalPins |= pin;
             }
         }
         Position::occupiedSquares ^= pinned;
@@ -732,6 +725,15 @@ void Gen::genMoves()
     }
 }
 
+void Gen::init()
+{
+    // an estimate for the maximum number of moves in a position
+    moveList.reserve(256);
+    initKnightMoves();
+    initKingMoves();
+}
+
+
 void Gen::genCaptures()
 {
     if (Position::rights.isWhiteToMove)
@@ -744,10 +746,8 @@ void Gen::genCaptures()
     }
 }
 
-void Gen::init()
+bool Gen::isInCheck()
 {
-    // an estimate for the maximum number of moves in a position
-    moveList.reserve(256);
-    initKnightMoves();
-    initKingMoves();
+    const Piece king = Position::rights.isWhiteToMove ? WHITE_KING : BLACK_KING;
+    return ~safeSquares & Position::bitboards[king];
 }

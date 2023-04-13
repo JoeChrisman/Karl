@@ -2,7 +2,9 @@
 // Created by Joe Chrisman on 4/5/23.
 //
 
+#include <sstream>
 #include "Position.h"
+#include "Notation.h"
 
 std::vector<U64> Position::bitboards = std::vector<U64>(12, EMPTY_BOARD);
 std::vector<Piece> Position::pieces = std::vector<Piece>(64, NULL_PIECE);
@@ -56,7 +58,223 @@ namespace
             default: return NULL_PIECE;
         }
     }
+
+    void clear()
+    {
+        Position::bitboards = std::vector<U64>(12, EMPTY_BOARD);
+        Position::pieces = std::vector<Piece>(64, NULL_PIECE);
+        Position::updateBitboards();
+        Position::rights = {};
+    }
 }
+
+bool Position::init(const std::string& fen)
+{
+    clear();
+
+    std::vector<std::string> fenParts;
+    std::stringstream stream(fen);
+    std::string part;
+    while (stream >> part)
+    {
+        fenParts.push_back(part);
+    }
+    if (fenParts.size() != 6)
+    {
+        return false;
+    }
+
+    const std::string position = fenParts[0];
+    const std::string playerToMove = fenParts[1];
+    const std::string castlingRights = fenParts[2];
+    const std::string enPassantSquare = fenParts[3];
+    const std::string halfMoves = fenParts[4];
+    const std::string fullMoves = fenParts[5];
+
+    Square square = A8;
+    for (const char letter : position)
+    {
+        const Piece piece = getPieceByChar(letter);
+
+        if (piece != NULL_PIECE)
+        {
+            pieces[square] = piece;
+            bitboards[piece] |= getBoard(square++);
+        }
+        else if (isdigit(letter))
+        {
+            const int digit = letter - '0';
+            if (digit < 1 || digit > 8)
+            {
+                clear();
+                return false;
+            }
+            square += digit;
+        }
+        else if (letter != '/')
+        {
+            clear();
+            return false;
+        }
+    }
+    updateBitboards();
+
+    if (playerToMove != "w" && playerToMove != "b")
+    {
+        clear();
+        return false;
+    }
+
+    int enPassantFile = enPassantSquare == "-" ? -1 : Notation::charToFile(enPassantSquare[0]);
+    if (enPassantFile < -1 || enPassantFile > 8)
+    {
+        clear();
+        return false;
+    }
+
+    rights.enPassantFile = enPassantFile;
+    rights.isWhiteToMove = playerToMove == "w";
+
+    return true;
+}
+
+
+inline void Position::updateBitboards()
+{
+    whitePieces = bitboards[WHITE_PAWN] |
+                  bitboards[WHITE_KNIGHT] |
+                  bitboards[WHITE_BISHOP] |
+                  bitboards[WHITE_ROOK] |
+                  bitboards[WHITE_QUEEN] |
+                  bitboards[WHITE_KING];
+
+    blackPieces = bitboards[BLACK_PAWN] |
+                  bitboards[BLACK_KNIGHT] |
+                  bitboards[BLACK_BISHOP] |
+                  bitboards[BLACK_ROOK] |
+                  bitboards[BLACK_QUEEN] |
+                  bitboards[BLACK_KING];
+
+    occupiedSquares = whitePieces | blackPieces;
+    emptySquares = ~occupiedSquares;
+    whiteOrEmpty = whitePieces | emptySquares;
+    blackOrEmpty = blackPieces | emptySquares;
+}
+
+
+void Position::makeMove(const Move move)
+{
+    if (rights.isWhiteToMove)
+    {
+        makeMove<true>(move);
+    }
+    else
+    {
+        makeMove<false>(move);
+    }
+}
+
+void Position::unMakeMove(const Move move, const Rights& previousRights)
+{
+    if (!rights.isWhiteToMove)
+    {
+        unMakeMove<true>(move, previousRights);
+    }
+    else
+    {
+        unMakeMove<false>(move, previousRights);
+    }
+}
+
+template<bool isWhite>
+void Position::makeMove(const Move move)
+{
+    const Square from = Moves::getFrom(move);
+    const Square to = Moves::getTo(move);
+    const Piece moving = Moves::getMoved(move);
+    const Piece captured = Moves::getCaptured(move);
+
+    assert(moving >= WHITE_PAWN && moving <= NULL_PIECE);
+    assert(captured >= WHITE_PAWN && captured <= NULL_PIECE);
+
+    // move the piece
+    bitboards[moving] ^= getBoard(from);
+    pieces[from] = NULL_PIECE;
+    bitboards[moving] |= getBoard(to);
+    pieces[to] = moving;
+
+    if (move & Moves::DOUBLE_PAWN_PUSH)
+    {
+        // enable en passant square
+        rights.enPassantFile = getFile(to);
+    }
+    else
+    {
+        rights.enPassantFile = -1;
+    }
+
+
+    if (move & Moves::EN_PASSANT)
+    {
+        //assert(rights.enPassantFile >= 0 && rights.enPassantFile <= 8);
+        /*if (rights.enPassantFile >= 0 && rights.enPassantFile <= 8)
+        {
+            int a = 1;
+        }*/
+
+
+
+        // perform en passant capture
+        const Square enPassantCapture = isWhite ? south(to) : north(to);
+        bitboards[captured] ^= getBoard(enPassantCapture);
+        pieces[enPassantCapture] = NULL_PIECE;
+    }
+    else if (captured != NULL_PIECE)
+    {
+        bitboards[captured] ^= getBoard(to);
+    }
+
+    rights.isWhiteToMove = !rights.isWhiteToMove;
+    updateBitboards();
+
+}
+
+template<bool isWhite>
+void Position::unMakeMove(const Move move, const Rights& previousRights)
+{
+    rights = previousRights;
+
+    const Square from = Moves::getFrom(move);
+    const Square to = Moves::getTo(move);
+    const Piece moved = Moves::getMoved(move);
+    const Piece captured = Moves::getCaptured(move);
+
+    assert(moved >= WHITE_PAWN && moved <= NULL_PIECE);
+    assert(captured >= WHITE_PAWN && captured <= NULL_PIECE);
+
+    // move the piece back
+    pieces[from] = moved;
+    pieces[to] = NULL_PIECE;
+    bitboards[moved] ^= getBoard(to);
+    bitboards[moved] |= getBoard(from);
+
+    // if we are un-capturing en passant
+    if (move & Moves::EN_PASSANT)
+    {
+        assert(captured == WHITE_PAWN || captured == BLACK_PAWN);
+        const Square enPassantCapture = isWhite ? south(to) : north(to);
+        pieces[enPassantCapture] = captured;
+        bitboards[captured] |= getBoard(enPassantCapture);
+    }
+    else if (captured != NULL_PIECE)
+    {
+        pieces[to] = captured;
+        bitboards[captured] |= getBoard(to);
+    }
+
+    updateBitboards();
+}
+
 
 void Position::print(bool isWhiteOnBottom)
 {
@@ -88,116 +306,5 @@ void Position::print(bool isWhiteOnBottom)
         std::cout << " " << file << " ";
     }
     std::cout << "\n";
-}
-
-
-void Position::init(const std::string& fen)
-{
-    bitboards = std::vector<U64>(12, EMPTY_BOARD);
-    pieces = std::vector<Piece>(64, NULL_PIECE);
-
-    bool readingPieces = true;
-    Square square = A8;
-    for (const char letter : fen)
-    {
-        if (readingPieces)
-        {
-            if (letter == ' ')
-            {
-                readingPieces = false;
-            }
-            else
-            {
-                Piece piece = getPieceByChar(letter);
-
-                if (piece != NULL_PIECE)
-                {
-                    pieces[square] = piece;
-                    U64 board = getBoard(square++);
-                    bitboards[piece] |= board;
-                }
-                else if (isdigit(letter))
-                {
-                    int digit = letter - '0';
-                    square += digit;
-                }
-            }
-        }
-        else
-        {
-            // read position rights...
-        }
-    }
-    updateBitboards();
-}
-
-inline void Position::updateBitboards()
-{
-    whitePieces = bitboards[WHITE_PAWN] |
-                  bitboards[WHITE_KNIGHT] |
-                  bitboards[WHITE_BISHOP] |
-                  bitboards[WHITE_ROOK] |
-                  bitboards[WHITE_QUEEN] |
-                  bitboards[WHITE_KING];
-
-    blackPieces = bitboards[BLACK_PAWN] |
-                  bitboards[BLACK_KNIGHT] |
-                  bitboards[BLACK_BISHOP] |
-                  bitboards[BLACK_ROOK] |
-                  bitboards[BLACK_QUEEN] |
-                  bitboards[BLACK_KING];
-
-    occupiedSquares = whitePieces | blackPieces;
-    emptySquares = ~occupiedSquares;
-    whiteOrEmpty = whitePieces | emptySquares;
-    blackOrEmpty = blackPieces | emptySquares;
-}
-
-void Position::makeMove(const Move move)
-{
-    const Square from = getSquareFrom(move);
-    const Square to = getSquareTo(move);
-    const Piece moved = getPieceMoved(move);
-    const Piece captured = getPieceCaptured(move);
-
-    pieces[from] = NULL_PIECE;
-    pieces[to] = moved;
-
-    bitboards[moved] ^= getBoard(from);
-    bitboards[moved] |= getBoard(to);
-    if (captured != NULL_PIECE)
-    {
-        bitboards[captured] ^= getBoard(to);
-    }
-
-    rights.isWhiteToMove = !rights.isWhiteToMove;
-    updateBitboards();
-}
-
-void Position::unMakeMove(const Move move)
-{
-    const Square from = getSquareFrom(move);
-    const Square to = getSquareTo(move);
-    const Piece moved = getPieceMoved(move);
-    const Piece captured = getPieceCaptured(move);
-
-    assert(from >= A8 && from <= H1);
-    assert(to >= A8 && to <= H1);
-    assert(moved != NULL_PIECE);
-
-
-    pieces[from] = moved;
-    pieces[to] = captured;
-
-    bitboards[moved] ^= getBoard(to);
-    bitboards[moved] |= getBoard(from);
-
-    if (captured != NULL_PIECE)
-    {
-        bitboards[captured] ^= getBoard(to);
-    }
-
-    rights.isWhiteToMove = !rights.isWhiteToMove;
-    updateBitboards();
 }
 

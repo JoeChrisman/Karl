@@ -5,11 +5,11 @@
 #ifndef KARL_POSITION_H
 #define KARL_POSITION_H
 
-#include "Defs.h"
+#include "Moves.h"
 
 namespace Position
 {
-    void init(const std::string& fen);
+    bool init(const std::string& fen);
 
     extern std::vector<U64> bitboards;
     extern std::vector<Piece> pieces;
@@ -24,18 +24,24 @@ namespace Position
 
     extern struct Rights
     {
-        U64 enPassant;
-        bool whiteLongCastle;
-        bool whiteShortCastle;
-        bool blackLongCastle;
-        bool blackShortCastle;
+        bool isWhiteToMove;
+
+        int castlingFlags;
+        int enPassantFile;
+
         int currentPly;
         int lastIrreversiblePly;
-        bool isWhiteToMove;
     } rights;
 
     void makeMove(const Move move);
-    void unMakeMove(const Move move);
+    void unMakeMove(const Move move, const Rights& previousRights);
+
+
+    template<bool isWhite>
+    void makeMove(const Move move);
+
+    template<bool isWhite>
+    void unMakeMove(const Move move, const Rights& previousRights);
 
     void print(bool isWhiteOnBottom);
 };

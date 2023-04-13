@@ -4,6 +4,7 @@
 
 #include <ctime>
 #include "Cli.h"
+#include "Notation.h"
 
 namespace
 {
@@ -14,77 +15,77 @@ namespace
         std::cout << "\033[;35m> \033[0m";
     }
 
-    int notationToFile(const char fileChar)
-    {
-        return (int)(fileChar - 'a');
-    }
-
-    int notationToRank(const char rankChar)
-    {
-        return (int)(rankChar - '1');
-    }
-
-    char fileToNotation(const int file)
-    {
-        return (char)(file + 'a');
-    }
-
-    char rankToNotation(const int rank)
-    {
-        return (char)('1' + rank);
-    }
-
-    Square notationToSquare(const std::string& notation)
-    {
-        return getSquare(notationToRank(notation[1]),
-                         notationToFile(notation[0]));
-    }
-
-    std::string squareToNotation(const Square square)
-    {
-        return std::string{
-                fileToNotation(getFile(square)),
-                rankToNotation((getRank(square)))};
-    }
-
-    std::string moveToNotation(const Move move)
-    {
-        return squareToNotation(getSquareFrom(move)) + squareToNotation(getSquareTo(move));
-    }
-
     struct PerftInfo
     {
-        U64 leafNodes;
         U64 totalNodes;
-        U64 totalCaptures;
-        U64 totalEnPassant;
-        U64 totalPromotions;
+
+        U64 leafNodes;
+        U64 leafCaptures;
+        U64 leafEnPassants;
+        U64 leafPromotions;
+        U64 leafCastles;
+        U64 leafCheckmates;
+        U64 leafStalemates;
+        U64 leafChecks;
     };
 
     void perft(int depth, PerftInfo &info)
     {
-        Gen::genMoves();
         if (!depth)
         {
-            info.leafNodes += Gen::moveList.size();
-            info.totalNodes += Gen::moveList.size();
+            info.totalNodes++;
+            info.leafNodes++;
+
+            Gen::genMoves();
+            if (Gen::moveList.empty())
+            {
+                if (Gen::isInCheck())
+                {
+                    info.leafChecks++;
+                    info.leafCheckmates++;
+                }
+                else
+                {
+                    info.leafStalemates++;
+                }
+            }
+            else
+            {
+                if (Gen::isInCheck())
+                {
+                    info.leafChecks++;
+                }
+            }
             return;
         }
         info.totalNodes++;
+        Position::Rights rightsCopy = Position::rights;
+        Gen::genMoves();
         const std::vector<Move> moveList = Gen::moveList;
         for (const Move move : moveList)
         {
-            if (getPieceCaptured(move) != NULL_PIECE)
+            if (depth == 1)
             {
-                info.totalCaptures++;
-            }
-            if (getMoveType(move) > 2)
-            {
-                info.totalPromotions++;
+                if (Moves::getCaptured(move) != NULL_PIECE)
+                {
+                    info.leafCaptures++;
+                }
+                if (move & Moves::EN_PASSANT)
+                {
+                    info.leafEnPassants++;
+                }
+                if (move & (Moves::LONG_CASTLE | Moves::SHORT_CASTLE))
+                {
+                    info.leafCastles++;
+                }
+                if (Moves::getPromoted(move) != NULL_PIECE)
+                {
+                    info.leafPromotions++;
+                }
             }
             Position::makeMove(move);
             perft(depth - 1, info);
-            Position::unMakeMove(move);
+            Position::unMakeMove(move, rightsCopy);
         }
     }
 }
@@ -118,9 +119,15 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "help")
         {
+            std::cout << "\t~ This is the user manual for the Karl Chess Engine Command Line Interface\n";
+            std::cout << "\t~ Version: version " << VERSION << "\n";
+            std::cout << "\t~ Author: Joe Chrisman\n";
+            std::cout << "\t\t~ A field in angle braces, like \"<field>\", means that field is required\n";
+            std::cout << "\t\t~ A field in curly braces, like \"{field}\", means that field is optional\n";
+            std::cout << "\t\t~ This is a list of all commands\n\n";
             std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
-            std::cout << "\t~ \"load <FEN>\" to load a position into the engine\n";
-            std::cout << "\t\t~ The default position is the initial position playing as white\n";
+            std::cout << "\t~ \"load {fen}\" to load a position into the engine\n";
+            std::cout << "\t\t~ The default position is an empty board\n";
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
             std::cout << "\t~ \"show\" to show the current position\n";
@@ -133,19 +140,14 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ For example, \"move e2e4\" would move the piece on e2 to e4\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
-            //std::cout << "\t~ \"perft <plies>\" to run a perft test\n";
-            //std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
-            //std::cout << "\t\t~ The field \"<ply> must be an integer greater than zero and is the number of half moves to search\n";
-            //std::cout << "\t\t~ Visit this webpage to learn more about perft: https://www.chessprogramming.org/Perft\n";
+            std::cout << "\t~ \"perft <min> {max}\" to run a perft test\n";
+            std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
+            std::cout << "\t\t~ The field \"<min>\" is the lowest depth to search to\n";
+            std::cout << "\t\t~ The field \"{max}\" is the highest depth to search to\n";
+            std::cout << "\t\t~ All depths between \"<min>\" and \"{max}\" will be searched\n";
+            std::cout << "\t\t~ If \"{max}\" is omitted, only the \"<min>\" depth will be searched\n";
             std::cout << "\t~ \"uci\" to enter UCI mode\n";
-            std::cout << "\t~ \"info\" to see additional info about Karl\n";
             std::cout << "\t~ \"help\" to see this list of commands\n";
-            showReady();
-        }
-        else if (command == "info")
-        {
-            std::cout << "\t~ Version: version " << VERSION << "\n";
-            std::cout << "\t~ Author: Joe Chrisman\n";
             showReady();
         }
         else if (command.substr(0, 4) == "load")
@@ -156,8 +158,15 @@ ____  __.           ))   `\_) .__
             {
                 fen = command.substr(5, std::string::npos);
             }
-            Position::init(fen);
-            std::cout << "~ Successfully loaded position \"" << fen << "\"\n";
+            if (Position::init(fen))
+            {
+                std::cout << "~ Successfully loaded FEN string \"" << fen << "\"\n";
+            }
+            else
+            {
+                std::cout << "~ Failed to load the position\n";
+                std::cout << "~ Invalid FEN string \"" << fen << "\"\n";
+            }
             showReady();
         }
         else if (command == "show")
@@ -170,7 +179,6 @@ ____  __.           ))   `\_) .__
             if (Position::rights.isWhiteToMove)
             {
                 std::cout << "~ It is white to move\n";
-
             }
             else
             {
@@ -181,19 +189,19 @@ ____  __.           ))   `\_) .__
         else if (command.substr(0, 8) == "makemove")
         {
             std::string notation = command.substr(9, std::string::npos);
-            Square from = notationToSquare(notation.substr(0, 2));
-            Square to = notationToSquare(notation.substr(2, 2));
+            Square from = Notation::strToSquare(notation.substr(0, 2));
+            Square to = Notation::strToSquare(notation.substr(2, 2));
             Gen::genMoves();
-            Move legalMove = NULL_MOVE;
+            Move legalMove = Moves::NULL_MOVE;
             for (const Move move : Gen::moveList)
             {
-                if (getSquareFrom(move) == from && getSquareTo(move) == to)
+                if (Moves::getFrom(move) == from && Moves::getTo(move) == to)
                 {
                     legalMove = move;
                     break;
                 }
             }
-            if (legalMove != NULL_MOVE)
+            if (legalMove != Moves::NULL_MOVE)
             {
                 Position::makeMove(legalMove);
                 std::cout << "~ Successfully played move \"" << notation << "\"\n";
@@ -211,7 +219,7 @@ ____  __.           ))   `\_) .__
             std::cout << "~ There are " << Gen::moveList.size() << " legal moves\n";
             for (Move move : Gen::moveList)
             {
-                std::cout << "\t~ " << moveToNotation(move) << "\n";
+                std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
             }
             showReady();
         }
@@ -221,7 +229,7 @@ ____  __.           ))   `\_) .__
             std::cout << "~ There are " << Gen::moveList.size() << " legal captures\n";
             for (Move move : Gen::moveList)
             {
-                std::cout << "\t~ " << moveToNotation(move) << "\n";
+                std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
             }
             showReady();
         }
@@ -267,14 +275,21 @@ ____  __.           ))   `\_) .__
                     double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
                     double msElapsed = endMillis - startMillis;
 
+                    double branchingFactor = (double)(info.totalNodes - 1) / (double)(info.totalNodes - info.leafNodes);
+
                     std::cout << "\t~ Depth " << depth << " results:\n";
                     std::cout << "\t\t~ Time: " << msElapsed << "ms\n";
                     std::cout << "\t\t~ kN/s: " << (double)info.totalNodes / msElapsed << "\n";
+                    std::cout << "\t\t~ Branching factor: " <<  branchingFactor << "\n";
+                    std::cout << "\t\t~ Total nodes: " << info.totalNodes << "\n";
                     std::cout << "\t\t~ Leaf nodes: " << info.leafNodes << "\n";
-                    std::cout << "\t\t~ Nodes: " << info.totalNodes << "\n";
-                    std::cout << "\t\t~ Promotions: " << info.totalEnPassant << "\n";
-                    std::cout << "\t\t~ Captures: " << info.totalCaptures << "\n";
-                    std::cout << "\t\t~ En passant captures: " << info.totalEnPassant << "\n";
+                    std::cout << "\t\t~ Leaf checks: " << info.leafChecks << "\n";
+                    std::cout << "\t\t~ Leaf checkmates: " << info.leafCheckmates << "\n";
+                    std::cout << "\t\t~ Leaf stalemates: " << info.leafStalemates << "\n";
+                    std::cout << "\t\t~ Leaf promotions: " << info.leafPromotions << "\n";
+                    std::cout << "\t\t~ Leaf captures: " << info.leafCaptures << "\n";
+                    std::cout << "\t\t~ Leaf castles: " << info.leafCastles << "\n";
+                    std::cout << "\t\t~ Leaf en passants: " << info.leafEnPassants << "\n";
                 }
                 std::cout << "~ Perft test complete\n";
                 showReady();

@@ -15,6 +15,13 @@ namespace Gen
     void genMoves();
     void genCaptures();
 
+    bool isInCheck();
+
+    extern U64 resolverSquares;
+    extern U64 safeSquares;
+    extern U64 cardinalPins;
+    extern U64 ordinalPins;
+
     extern std::vector<Move> moveList;
 };
 
