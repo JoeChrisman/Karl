@@ -12,7 +12,7 @@ namespace
 
     void showReady()
     {
-        std::cout << "\033[;35m> \033[0m";
+        std::cout << "\033[;35m> \033[0m" << std::flush;
     }
 
     struct PerftInfo
@@ -189,13 +189,11 @@ ____  __.           ))   `\_) .__
         else if (command.substr(0, 8) == "makemove")
         {
             std::string notation = command.substr(9, std::string::npos);
-            Square from = Notation::strToSquare(notation.substr(0, 2));
-            Square to = Notation::strToSquare(notation.substr(2, 2));
             Gen::genMoves();
             Move legalMove = Moves::NULL_MOVE;
             for (const Move move : Gen::moveList)
             {
-                if (Moves::getFrom(move) == from && Moves::getTo(move) == to)
+                if (Notation::moveToStr(move) == notation)
                 {
                     legalMove = move;
                     break;
@@ -248,8 +246,8 @@ ____  __.           ))   `\_) .__
         else if (command.substr(0, 5) == "perft")
         {
             // read desired depths
-            const std::string::size_type minDepthIndex = command.find_first_of(' ');
-            const std::string::size_type maxDepthIndex = command.find_last_of(' ');
+            const std::string::size_type minDepthIndex = command.find_first_of(' ') + 1;
+            const std::string::size_type maxDepthIndex = command.find_last_of(' ') + 1;
             if (minDepthIndex == std::string::npos)
             {
                 std::cout << "~ Unrecognized arguments\n";
@@ -274,7 +272,7 @@ ____  __.           ))   `\_) .__
                     double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
                     double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
                     double msElapsed = endMillis - startMillis;
-
+                    
                     double branchingFactor = (double)(info.totalNodes - 1) / (double)(info.totalNodes - info.leafNodes);
 
                     std::cout << "\t~ Depth " << depth << " results:\n";

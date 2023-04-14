@@ -5,10 +5,14 @@
 #ifndef KARL_NOTATION_H
 #define KARL_NOTATION_H
 
+#include <string>
 #include "Moves.h"
 
 namespace Notation
 {
+    char pieceToChar(const Piece piece);
+    Piece charToPiece(const char letter);
+    std::string pieceToUnicode(const Piece piece);
 
     int charToFile(const char fileChar);
     int charToRank(const char rankChar);

@@ -10,6 +10,7 @@
 namespace Position
 {
     bool init(const std::string& fen);
+    void clear();
 
     extern std::vector<U64> bitboards;
     extern std::vector<Piece> pieces;

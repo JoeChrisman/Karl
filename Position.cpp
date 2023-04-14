@@ -18,56 +18,6 @@ U64 Position::blackOrEmpty = EMPTY_BOARD;
 
 Position::Rights Position::rights = {};
 
-namespace
-{
-    std::string getUnicodePiece(const Piece piece)
-    {
-        switch (piece)
-        {
-            case WHITE_PAWN: return "\u265F";
-            case WHITE_KNIGHT: return "\u265E";
-            case WHITE_BISHOP: return "\u265D";
-            case WHITE_ROOK: return "\u265C";
-            case WHITE_QUEEN: return "\u265B";
-            case WHITE_KING: return "\u265A";
-            case BLACK_PAWN: return "\u2659";
-            case BLACK_KNIGHT: return "\u2658";
-            case BLACK_BISHOP: return "\u2657";
-            case BLACK_ROOK: return "\u2656";
-            case BLACK_QUEEN: return "\u2655";
-            case BLACK_KING: return "\u2654";
-            default: return "";
-        }
-    }
-    Piece getPieceByChar(const char letter)
-    {
-        switch (letter)
-        {
-            case 'P': return WHITE_PAWN;
-            case 'N': return WHITE_KNIGHT;
-            case 'B': return WHITE_BISHOP;
-            case 'R': return WHITE_ROOK;
-            case 'Q': return WHITE_QUEEN;
-            case 'K': return WHITE_KING;
-            case 'p': return BLACK_PAWN;
-            case 'n': return BLACK_KNIGHT;
-            case 'b': return BLACK_BISHOP;
-            case 'r': return BLACK_ROOK;
-            case 'q': return BLACK_QUEEN;
-            case 'k': return BLACK_KING;
-            default: return NULL_PIECE;
-        }
-    }
-
-    void clear()
-    {
-        Position::bitboards = std::vector<U64>(12, EMPTY_BOARD);
-        Position::pieces = std::vector<Piece>(64, NULL_PIECE);
-        Position::updateBitboards();
-        Position::rights = {};
-    }
-}
-
 bool Position::init(const std::string& fen)
 {
     clear();
@@ -94,7 +44,7 @@ bool Position::init(const std::string& fen)
     Square square = A8;
     for (const char letter : position)
     {
-        const Piece piece = getPieceByChar(letter);
+        const Piece piece = Notation::charToPiece(letter);
 
         if (piece != NULL_PIECE)
         {
@@ -136,6 +86,14 @@ bool Position::init(const std::string& fen)
     rights.isWhiteToMove = playerToMove == "w";
 
     return true;
+}
+
+void Position::clear()
+{
+    bitboards = std::vector<U64>(12, EMPTY_BOARD);
+    pieces = std::vector<Piece>(64, NULL_PIECE);
+    updateBitboards();
+    rights = {};
 }
 
 
@@ -193,44 +151,52 @@ void Position::makeMove(const Move move)
     const Square to = Moves::getTo(move);
     const Piece moving = Moves::getMoved(move);
     const Piece captured = Moves::getCaptured(move);
+    const Piece promoted = Moves::getPromoted(move);
 
-    assert(moving >= WHITE_PAWN && moving <= NULL_PIECE);
-    assert(captured >= WHITE_PAWN && captured <= NULL_PIECE);
-
-    // move the piece
+    // remove the piece
     bitboards[moving] ^= getBoard(from);
     pieces[from] = NULL_PIECE;
-    bitboards[moving] |= getBoard(to);
-    pieces[to] = moving;
 
+    // if we promoted
+    if (promoted != NULL_PIECE)
+    {
+        // put the promoted piece on the target square
+        pieces[to] = promoted;
+        bitboards[promoted] |= getBoard(to);
+    }
+    // if we did not promote
+    else
+    {
+        // put the moving piece on the target square
+        pieces[to] = moving;
+        bitboards[moving] |= getBoard(to);
+    }
+
+    // if we pushed a pawn two squares
     if (move & Moves::DOUBLE_PAWN_PUSH)
     {
         // enable en passant square
         rights.enPassantFile = getFile(to);
     }
+    // if we did not enable an en passant move
     else
     {
+        // disable en passant move from last time
         rights.enPassantFile = -1;
     }
 
-
+    // if we captured en passant
     if (move & Moves::EN_PASSANT)
     {
-        //assert(rights.enPassantFile >= 0 && rights.enPassantFile <= 8);
-        /*if (rights.enPassantFile >= 0 && rights.enPassantFile <= 8)
-        {
-            int a = 1;
-        }*/
-
-
-
         // perform en passant capture
         const Square enPassantCapture = isWhite ? south(to) : north(to);
         bitboards[captured] ^= getBoard(enPassantCapture);
         pieces[enPassantCapture] = NULL_PIECE;
     }
+    // if we captured normally
     else if (captured != NULL_PIECE)
     {
+        // remove the captured piece
         bitboards[captured] ^= getBoard(to);
     }
 
@@ -248,9 +214,7 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
     const Square to = Moves::getTo(move);
     const Piece moved = Moves::getMoved(move);
     const Piece captured = Moves::getCaptured(move);
-
-    assert(moved >= WHITE_PAWN && moved <= NULL_PIECE);
-    assert(captured >= WHITE_PAWN && captured <= NULL_PIECE);
+    const Piece promoted = Moves::getPromoted(move);
 
     // move the piece back
     pieces[from] = moved;
@@ -258,10 +222,15 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
     bitboards[moved] ^= getBoard(to);
     bitboards[moved] |= getBoard(from);
 
+    // if we are un-promoting
+    if (promoted != NULL_PIECE)
+    {
+        // remove the promoted piece
+        bitboards[promoted] ^= getBoard(to);
+    }
     // if we are un-capturing en passant
     if (move & Moves::EN_PASSANT)
     {
-        assert(captured == WHITE_PAWN || captured == BLACK_PAWN);
         const Square enPassantCapture = isWhite ? south(to) : north(to);
         pieces[enPassantCapture] = captured;
         bitboards[captured] |= getBoard(enPassantCapture);
@@ -291,7 +260,7 @@ void Position::print(bool isWhiteOnBottom)
         Piece piece = Position::pieces[square];
         if (piece != NULL_PIECE)
         {
-            std::cout << " " << getUnicodePiece(piece) << " ";
+            std::cout << " " << Notation::pieceToUnicode(piece) << " ";
         }
         else
         {
