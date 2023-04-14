@@ -18,6 +18,22 @@ U64 Position::blackOrEmpty = EMPTY_BOARD;
 
 Position::Rights Position::rights = {};
 
+namespace
+{
+    constexpr int WHITE_CASTLE = Position::WHITE_CASTLE_LONG | Position::WHITE_CASTLE_SHORT;
+    constexpr int BLACK_CASTLE = Position::BLACK_CASTLE_LONG | Position::BLACK_CASTLE_SHORT;
+    constexpr int CASTLING_FLAGS[64] = {
+            ~Position::BLACK_CASTLE_LONG, 15, 15, 15, ~BLACK_CASTLE,  15, 15, ~Position::BLACK_CASTLE_SHORT,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            15,                           15, 15, 15,       15,       15, 15,                            15,
+            ~Position::WHITE_CASTLE_LONG, 15, 15, 15, ~WHITE_CASTLE,  15, 15, ~Position::WHITE_CASTLE_SHORT,
+    };
+}
+
 bool Position::init(const std::string& fen)
 {
     clear();
@@ -84,6 +100,23 @@ bool Position::init(const std::string& fen)
 
     rights.enPassantFile = enPassantFile;
     rights.isWhiteToMove = playerToMove == "w";
+
+    if (castlingRights.find('K') != std::string::npos)
+    {
+        rights.castlingFlags |= WHITE_CASTLE_SHORT;
+    }
+    if (castlingRights.find('Q') != std::string::npos)
+    {
+        rights.castlingFlags |= WHITE_CASTLE_LONG;
+    }
+    if (castlingRights.find('k') != std::string::npos)
+    {
+        rights.castlingFlags |= BLACK_CASTLE_SHORT;
+    }
+    if (castlingRights.find('q') != std::string::npos)
+    {
+        rights.castlingFlags |= BLACK_CASTLE_LONG;
+    }
 
     return true;
 }
@@ -157,6 +190,10 @@ void Position::makeMove(const Move move)
     bitboards[moving] ^= getBoard(from);
     pieces[from] = NULL_PIECE;
 
+    // remove castling rights
+    rights.castlingFlags &= CASTLING_FLAGS[to];
+    rights.castlingFlags &= CASTLING_FLAGS[from];
+
     // if we promoted
     if (promoted != NULL_PIECE)
     {
@@ -170,6 +207,30 @@ void Position::makeMove(const Move move)
         // put the moving piece on the target square
         pieces[to] = moving;
         bitboards[moving] |= getBoard(to);
+        // if we castled short
+        if (move & Moves::SHORT_CASTLE)
+        {
+            static constexpr Piece eastRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
+            static constexpr Square rookFrom = isWhite ? H1 : H8;
+            static constexpr Square rookTo = isWhite ? F1 : F8;
+            // move the east rook west of the king
+            pieces[rookFrom] = NULL_PIECE;
+            bitboards[eastRook] ^= getBoard(rookFrom);
+            pieces[rookTo] = eastRook;
+            bitboards[eastRook] |= getBoard(rookTo);
+        }
+        // if we castled long
+        else if (move & Moves::LONG_CASTLE)
+        {
+            static constexpr Piece westRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
+            static constexpr Square rookFrom = isWhite ? A1 : A8;
+            static constexpr Square rookTo = isWhite ? D1 : D8;
+            // move the west rook east of the king
+            pieces[rookFrom] = NULL_PIECE;
+            bitboards[westRook] ^= getBoard(rookFrom);
+            pieces[rookTo] = westRook;
+            bitboards[westRook] |= getBoard(rookTo);
+        }
     }
 
     // if we pushed a pawn two squares
@@ -228,8 +289,32 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
         // remove the promoted piece
         bitboards[promoted] ^= getBoard(to);
     }
+    // if we are undoing kingside castling
+    else if (move & Moves::SHORT_CASTLE)
+    {
+        static constexpr Piece eastRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
+        static constexpr Square rookFrom = isWhite ? F1 : F8;
+        static constexpr Square rookTo = isWhite ? H1 : H8;
+        // move the castled rook east back to where it came from
+        pieces[rookFrom] = NULL_PIECE;
+        bitboards[eastRook] ^= getBoard(rookFrom);
+        pieces[rookTo] = eastRook;
+        bitboards[eastRook] |= getBoard(rookTo);
+    }
+    // if we are undoing queenside castling
+    else if (move & Moves::LONG_CASTLE)
+    {
+        static constexpr Piece westRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
+        static constexpr Square rookFrom = isWhite ? D1 : D8;
+        static constexpr Square rookTo = isWhite ? A1 : A8;
+        // move the castled rook east back to where it came from
+        pieces[rookFrom] = NULL_PIECE;
+        bitboards[westRook] ^= getBoard(rookFrom);
+        pieces[rookTo] = westRook;
+        bitboards[westRook] |= getBoard(rookTo);
+    }
     // if we are un-capturing en passant
-    if (move & Moves::EN_PASSANT)
+    else if (move & Moves::EN_PASSANT)
     {
         const Square enPassantCapture = isWhite ? south(to) : north(to);
         pieces[enPassantCapture] = captured;
@@ -243,7 +328,6 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
 
     updateBitboards();
 }
-
 
 void Position::print(bool isWhiteOnBottom)
 {

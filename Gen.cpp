@@ -528,6 +528,7 @@ namespace
     void genKingMoves()
     {
         static constexpr Piece pieceMoving = isWhite ? WHITE_KING : BLACK_KING;
+
         const Square from = getSquare(Position::bitboards[pieceMoving]);
         U64 moves = kingMoves[from] & Gen::safeSquares;
         if constexpr (quiets)
@@ -543,6 +544,34 @@ namespace
             const Square to = popFirstPiece(moves);
             Gen::moveList.push_back(
                     Moves::createMove(from, to, pieceMoving, Position::pieces[to]));
+        }
+
+        static constexpr int castleShort = isWhite ? Position::WHITE_CASTLE_SHORT : Position::BLACK_CASTLE_SHORT;
+        static constexpr int castleLong = isWhite ? Position::WHITE_CASTLE_LONG : Position::BLACK_CASTLE_LONG;
+
+        if (Position::rights.castlingFlags & castleShort)
+        {
+            static constexpr U64 shortSafeSquares = isWhite ? 0x7000000000000000 : 0x70;
+            static constexpr U64 shortEmptySquares = isWhite ? 0x6000000000000000 : 0x60;
+            if ((shortSafeSquares & Gen::safeSquares) == shortSafeSquares &&
+                (shortEmptySquares & Position::emptySquares) == shortEmptySquares)
+            {
+                const int to = isWhite ? G1 : G8;
+                Gen::moveList.push_back(
+                        Moves::SHORT_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE));
+            }
+        }
+        if (Position::rights.castlingFlags & castleLong)
+        {
+            static constexpr U64 longSafeSquares = isWhite ? 0x1c00000000000000 : 0x1c;
+            static constexpr U64 longEmptySquares = isWhite ? 0xe00000000000000 : 0xe;
+            if ((longSafeSquares & Gen::safeSquares) == longSafeSquares &&
+                (longEmptySquares & Position::emptySquares) == longEmptySquares)
+            {
+                const int to = isWhite ? C1 : C8;
+                Gen::moveList.push_back(
+                        Moves::LONG_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE));
+            }
         }
     }
 

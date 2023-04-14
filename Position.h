@@ -23,6 +23,11 @@ namespace Position
     extern U64 whiteOrEmpty;
     extern U64 blackOrEmpty;
 
+    inline constexpr int WHITE_CASTLE_SHORT = 0x1;
+    inline constexpr int WHITE_CASTLE_LONG = 0x2;
+    inline constexpr int BLACK_CASTLE_SHORT = 0x4;
+    inline constexpr int BLACK_CASTLE_LONG = 0x8;
+
     extern struct Rights
     {
         bool isWhiteToMove;
@@ -36,7 +41,6 @@ namespace Position
 
     void makeMove(const Move move);
     void unMakeMove(const Move move, const Rights& previousRights);
-
 
     template<bool isWhite>
     void makeMove(const Move move);

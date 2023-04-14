@@ -101,7 +101,7 @@ std::string Notation::moveToStr(const Move move)
 {
     std::string str = squareToStr(Moves::getFrom(move)) + squareToStr(Moves::getTo(move));
     const Piece promoted = Moves::getPromoted(move);
-    if (promoted != Moves::NULL_MOVE)
+    if (promoted != NULL_PIECE)
     {
         str += (char)tolower(pieceToChar(promoted));
     }

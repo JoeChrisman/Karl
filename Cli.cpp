@@ -36,7 +36,7 @@ namespace
             info.totalNodes++;
             info.leafNodes++;
 
-            Gen::genMoves();
+            /*Gen::genMoves();
             if (Gen::moveList.empty())
             {
                 if (Gen::isInCheck())
@@ -55,7 +55,7 @@ namespace
                 {
                     info.leafChecks++;
                 }
-            }
+            }*/
             return;
         }
         info.totalNodes++;
@@ -138,6 +138,8 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation\n";
             std::cout << "\t\t~ \"<from>\" is where the piece is, \"<to>\" is where to move the piece\n";
             std::cout << "\t\t~ For example, \"move e2e4\" would move the piece on e2 to e4\n";
+            std::cout << "\t\t~ To castle, use the king's starting and ending squares\n";
+            std::cout << "\t\t~ To promote, append the promotion type to the end of the move, such as \"e7e8q\"\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
             std::cout << "\t~ \"perft <min> {max}\" to run a perft test\n";
@@ -191,8 +193,10 @@ ____  __.           ))   `\_) .__
             std::string notation = command.substr(9, std::string::npos);
             Gen::genMoves();
             Move legalMove = Moves::NULL_MOVE;
+            std::cout << "\n";
             for (const Move move : Gen::moveList)
             {
+                std::cout << Notation::moveToStr(move) << ", ";
                 if (Notation::moveToStr(move) == notation)
                 {
                     legalMove = move;
