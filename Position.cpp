@@ -6,8 +6,8 @@
 #include "Position.h"
 #include "Notation.h"
 
-std::vector<U64> Position::bitboards = std::vector<U64>(12, EMPTY_BOARD);
-std::vector<Piece> Position::pieces = std::vector<Piece>(64, NULL_PIECE);
+U64 Position::bitboards[13];
+Piece Position::pieces[64];
 
 U64 Position::emptySquares = EMPTY_BOARD;
 U64 Position::occupiedSquares = EMPTY_BOARD;
@@ -123,8 +123,8 @@ bool Position::init(const std::string& fen)
 
 inline void Position::clear()
 {
-    bitboards = std::vector<U64>(12, EMPTY_BOARD);
-    pieces = std::vector<Piece>(64, NULL_PIECE);
+    std::memset(bitboards, EMPTY_BOARD, sizeof(bitboards));
+    std::memset(pieces, NULL_PIECE, sizeof(pieces));
     updateBitboards();
     rights = {};
 }

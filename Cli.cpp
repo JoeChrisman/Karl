@@ -19,13 +19,13 @@ namespace
     struct PerftInfo
     {
         U64 totalNodes;
+        U64 totalSplit;
 
-        U64 leafNodesSplit;
-        U64 leafNodes;
-        U64 leafCaptures;
-        U64 leafEnPassants;
-        U64 leafPromotions;
-        U64 leafCastles;
+        U64 nodes;
+        U64 captures;
+        U64 enPassants;
+        U64 promotions;
+        U64 castles;
     };
 
     void printPerftInfo(const PerftInfo& info, const int depth, const double msElapsed)
@@ -34,11 +34,11 @@ namespace
         std::cout << "\t~ =========================\n";
         std::cout << "\t~ Time        | " << msElapsed << "ms\n";
         std::cout << "\t~ kN/s        | " << (double)info.totalNodes / msElapsed << "\n";
-        std::cout << "\t~ Nodes       | " << info.leafNodes << "\n";
-        std::cout << "\t~ Promotions  | " << info.leafPromotions << "\n";
-        std::cout << "\t~ Captures    | " << info.leafCaptures << "\n";
-        std::cout << "\t~ Castles     | " << info.leafCastles << "\n";
-        std::cout << "\t~ En passants | " << info.leafEnPassants << "\n";
+        std::cout << "\t~ Nodes       | " << info.nodes << "\n";
+        std::cout << "\t~ Promotions  | " << info.promotions << "\n";
+        std::cout << "\t~ Captures    | " << info.captures << "\n";
+        std::cout << "\t~ Castles     | " << info.castles << "\n";
+        std::cout << "\t~ En passants | " << info.enPassants << "\n";
         std::cout << "\t~ =========================\n";
     }
 
@@ -48,43 +48,48 @@ namespace
 
         if (!depth)
         {
-            info.leafNodes++;
+            info.nodes++;
             if (splitDepth != -1)
             {
-                info.leafNodesSplit++;
+                info.totalSplit++;
             }
             return;
         }
         Position::Rights rightsCopy = Position::rights;
         Gen::genMoves();
-        const std::vector<Move> moveList = Gen::moveList;
-        for (const Move move : moveList)
+        Move moveList[256];
+        std::memcpy(moveList, Gen::moveList, sizeof(Gen::moveList));
+        for (Move move : moveList)
         {
+            if (move == Moves::NULL_MOVE)
+            {
+                break;
+            }
             if (depth == 1)
             {
                 if (Moves::getCaptured(move) != NULL_PIECE)
                 {
-                    info.leafCaptures++;
+                    info.captures++;
                 }
                 if (move & Moves::EN_PASSANT)
                 {
-                    info.leafEnPassants++;
+                    info.enPassants++;
                 }
                 if (move & (Moves::LONG_CASTLE | Moves::SHORT_CASTLE))
                 {
-                    info.leafCastles++;
+                    info.castles++;
                 }
                 if (Moves::getPromoted(move) != NULL_PIECE)
                 {
-                    info.leafPromotions++;
+                    info.promotions++;
                 }
             }
             Position::makeMove(move);
             if (splitDepth == depth)
             {
-                info.leafNodesSplit = 0;
+                info.totalSplit = 0;
                 perft(depth - 1, info, splitDepth);
-                std::cout << "~ " << Notation::moveToStr(move) << ": " << info.leafNodesSplit << "\n";
+                std::cout << "~ " << Notation::moveToStr(move) << ": " << info.totalSplit << "\n";
             }
             else
             {
@@ -225,9 +230,12 @@ ____  __.           ))   `\_) .__
         else if (command == "moves")
         {
             Gen::genMoves();
-            std::cout << "~ There are " << Gen::moveList.size() << " legal moves\n";
             for (Move move : Gen::moveList)
             {
+                if (move == Moves::NULL_MOVE)
+                {
+                    break;
+                }
                 std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
             }
             showReady();
@@ -235,9 +243,12 @@ ____  __.           ))   `\_) .__
         else if (command == "captures")
         {
             Gen::genCaptures();
-            std::cout << "~ There are " << Gen::moveList.size() << " legal captures\n";
             for (Move move : Gen::moveList)
             {
+                if (move == Moves::NULL_MOVE)
+                {
+                    break;
+                }
                 std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
             }
             showReady();
@@ -325,6 +336,7 @@ ____  __.           ))   `\_) .__
                     double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
                     double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
                     double msElapsed = endMillis - startMillis;
+
                     printPerftInfo(info, depth, msElapsed);
                 }
             }

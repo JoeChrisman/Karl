@@ -67,6 +67,7 @@ enum
 
 enum
 {
+    NULL_PIECE,
     WHITE_PAWN,
     WHITE_KNIGHT,
     WHITE_BISHOP,
@@ -78,8 +79,7 @@ enum
     BLACK_BISHOP,
     BLACK_ROOK,
     BLACK_QUEEN,
-    BLACK_KING,
-    NULL_PIECE
+    BLACK_KING
 };
 
 enum

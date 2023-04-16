@@ -12,8 +12,8 @@ namespace Position
     bool init(const std::string& fen);
     void clear();
 
-    extern std::vector<U64> bitboards;
-    extern std::vector<Piece> pieces;
+    extern U64 bitboards[13];
+    extern Piece pieces[64];
 
     inline void updateBitboards();
     extern U64 emptySquares;

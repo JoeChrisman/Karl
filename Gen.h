@@ -7,6 +7,7 @@
 
 #include "Position.h"
 #include "Magics.h"
+#include <array>
 
 namespace Gen
 {
@@ -22,7 +23,7 @@ namespace Gen
     extern U64 cardinalPins;
     extern U64 ordinalPins;
 
-    extern std::vector<Move> moveList;
+    extern Move moveList[256];
 };
 
 
