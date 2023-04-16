@@ -14,7 +14,7 @@ typedef unsigned long long U64;
 typedef int Piece;
 typedef int Square;
 
-const std::string VERSION = "0.2 <beta>";
+const std::string VERSION = "0.3 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const U64 EMPTY_BOARD = 0;
 const U64 FULL_BOARD = ~0;
@@ -228,5 +228,26 @@ Square northWest(const Square square)
     return square - 9 * distance;
 }
 
+// some debug code will live here temporarily
+
+inline void printBitboard(const U64 board)
+{
+    for (Square square = A8; square <= H1; square++)
+    {
+        if (FILE_MASKS[A_FILE] & getBoard(square))
+        {
+            std::cout << "\n";
+        }
+        if (board & getBoard(square))
+        {
+            std::cout << " 1 ";
+        }
+        else
+        {
+            std::cout << " . ";
+        }
+    }
+    std::cout << "\n";
+}
 
 #endif //KARL_DEFS_H

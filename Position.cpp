@@ -121,14 +121,13 @@ bool Position::init(const std::string& fen)
     return true;
 }
 
-void Position::clear()
+inline void Position::clear()
 {
     bitboards = std::vector<U64>(12, EMPTY_BOARD);
     pieces = std::vector<Piece>(64, NULL_PIECE);
     updateBitboards();
     rights = {};
 }
-
 
 inline void Position::updateBitboards()
 {
@@ -280,14 +279,18 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
     // move the piece back
     pieces[from] = moved;
     pieces[to] = NULL_PIECE;
-    bitboards[moved] ^= getBoard(to);
     bitboards[moved] |= getBoard(from);
+    bitboards[moved] &= ~getBoard(to);
+
 
     // if we are un-promoting
     if (promoted != NULL_PIECE)
     {
         // remove the promoted piece
         bitboards[promoted] ^= getBoard(to);
+        // replace a captured piece
+        pieces[to] = captured;
+        bitboards[captured] |= getBoard(to);
     }
     // if we are undoing kingside castling
     else if (move & Moves::SHORT_CASTLE)

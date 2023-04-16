@@ -3,6 +3,7 @@
 //
 
 #include <ctime>
+#include <sstream>
 #include "Cli.h"
 #include "Notation.h"
 
@@ -19,46 +20,41 @@ namespace
     {
         U64 totalNodes;
 
+        U64 leafNodesSplit;
         U64 leafNodes;
         U64 leafCaptures;
         U64 leafEnPassants;
         U64 leafPromotions;
         U64 leafCastles;
-        U64 leafCheckmates;
-        U64 leafStalemates;
-        U64 leafChecks;
     };
 
-    void perft(int depth, PerftInfo &info)
+    void printPerftInfo(const PerftInfo& info, const int depth, const double msElapsed)
     {
+        std::cout << "\t~ Depth " << depth << " perft results\n";
+        std::cout << "\t~ =========================\n";
+        std::cout << "\t~ Time        | " << msElapsed << "ms\n";
+        std::cout << "\t~ kN/s        | " << (double)info.totalNodes / msElapsed << "\n";
+        std::cout << "\t~ Nodes       | " << info.leafNodes << "\n";
+        std::cout << "\t~ Promotions  | " << info.leafPromotions << "\n";
+        std::cout << "\t~ Captures    | " << info.leafCaptures << "\n";
+        std::cout << "\t~ Castles     | " << info.leafCastles << "\n";
+        std::cout << "\t~ En passants | " << info.leafEnPassants << "\n";
+        std::cout << "\t~ =========================\n";
+    }
+
+    void perft(int depth, PerftInfo &info, int splitDepth = -1)
+    {
+        info.totalNodes++;
+
         if (!depth)
         {
-            info.totalNodes++;
             info.leafNodes++;
-
-            /*Gen::genMoves();
-            if (Gen::moveList.empty())
+            if (splitDepth != -1)
             {
-                if (Gen::isInCheck())
-                {
-                    info.leafChecks++;
-                    info.leafCheckmates++;
-                }
-                else
-                {
-                    info.leafStalemates++;
-                }
+                info.leafNodesSplit++;
             }
-            else
-            {
-                if (Gen::isInCheck())
-                {
-                    info.leafChecks++;
-                }
-            }*/
             return;
         }
-        info.totalNodes++;
         Position::Rights rightsCopy = Position::rights;
         Gen::genMoves();
         const std::vector<Move> moveList = Gen::moveList;
@@ -84,7 +80,17 @@ namespace
                 }
             }
             Position::makeMove(move);
-            perft(depth - 1, info);
+            if (splitDepth == depth)
+            {
+                info.leafNodesSplit = 0;
+                perft(depth - 1, info, splitDepth);
+                std::cout << "~ " << Notation::moveToStr(move) << ": " << info.leafNodesSplit << "\n";
+            }
+            else
+            {
+                perft(depth - 1, info, splitDepth);
+            }
+
             Position::unMakeMove(move, rightsCopy);
         }
     }
@@ -124,6 +130,7 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ Author: Joe Chrisman\n";
             std::cout << "\t\t~ A field in angle braces, like \"<field>\", means that field is required\n";
             std::cout << "\t\t~ A field in curly braces, like \"{field}\", means that field is optional\n";
+            std::cout << "\t\t~ A field in rounded braces, like \"(field)\", means that field is an optional flag\n";
             std::cout << "\t\t~ This is a list of all commands\n\n";
             std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
             std::cout << "\t~ \"load {fen}\" to load a position into the engine\n";
@@ -142,12 +149,14 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ To promote, append the promotion type to the end of the move, such as \"e7e8q\"\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
-            std::cout << "\t~ \"perft <min> {max}\" to run a perft test\n";
+            std::cout << "\t~ \"perft (split) <min> {max}\" to run a perft test\n";
             std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
             std::cout << "\t\t~ The field \"<min>\" is the lowest depth to search to\n";
             std::cout << "\t\t~ The field \"{max}\" is the highest depth to search to\n";
             std::cout << "\t\t~ All depths between \"<min>\" and \"{max}\" will be searched\n";
             std::cout << "\t\t~ If \"{max}\" is omitted, only the \"<min>\" depth will be searched\n";
+            std::cout << "\t\t~ If \"{max}\" is omitted, and the \"(split)\" flag is present, split mode will be enabled\n";
+            std::cout << "\t\t~ split mode only accepts one depth value and shows the number of leaf nodes after each move\n";
             std::cout << "\t~ \"uci\" to enter UCI mode\n";
             std::cout << "\t~ \"help\" to see this list of commands\n";
             showReady();
@@ -193,10 +202,8 @@ ____  __.           ))   `\_) .__
             std::string notation = command.substr(9, std::string::npos);
             Gen::genMoves();
             Move legalMove = Moves::NULL_MOVE;
-            std::cout << "\n";
             for (const Move move : Gen::moveList)
             {
-                std::cout << Notation::moveToStr(move) << ", ";
                 if (Notation::moveToStr(move) == notation)
                 {
                     legalMove = move;
@@ -249,26 +256,68 @@ ____  __.           ))   `\_) .__
         }
         else if (command.substr(0, 5) == "perft")
         {
-            // read desired depths
-            const std::string::size_type minDepthIndex = command.find_first_of(' ') + 1;
-            const std::string::size_type maxDepthIndex = command.find_last_of(' ') + 1;
-            if (minDepthIndex == std::string::npos)
+            std::stringstream stream(command);
+            std::string arg1;
+            std::string arg2;
+            stream >> arg1; // skip "perft"
+            stream >> arg1; // read "split" or a number
+            stream >> arg2; // read a number
+
+            int minDepth = -1;
+            int maxDepth = -1;
+            try
+            {
+                if (arg1 == "split")
+                {
+                    maxDepth = std::stoi(arg2);
+                }
+                else
+                {
+                    minDepth = std::stoi(arg1);
+                    if (arg2.empty())
+                    {
+                        maxDepth = minDepth;
+                    }
+                    else
+                    {
+                        maxDepth = std::stoi(arg2);
+                    }
+                }
+            }
+            catch (const std::exception& exception)
             {
                 std::cout << "~ Unrecognized arguments\n";
                 std::cout << "~ Run \"help\" for a list of commands\n";
                 showReady();
+                continue;
+            }
+            if (arg1 == "split")
+            {
+                // run perft with split mode enabled
+                timespec start = {};
+                timespec end = {};
+                PerftInfo info = {};
+                std::cout << "~ Running depth " << maxDepth << " split enabled perft\n";
+                clock_gettime(CLOCK_REALTIME, &start);
+                perft(maxDepth, info, maxDepth);
+                clock_gettime(CLOCK_REALTIME, &end);
+
+                double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
+                double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
+                double msElapsed = endMillis - startMillis;
+
+                printPerftInfo(info, maxDepth, msElapsed);
             }
             else
             {
-                std::string minDepth = command.substr(minDepthIndex, command.length() - minDepthIndex);
-                std::string maxDepth = command.substr(maxDepthIndex, command.length() - maxDepthIndex);
-                for (int depth = std::stoi(minDepth); depth <= std::stoi(maxDepth); depth++)
+                // run perft in normal mode
+                for (int depth = minDepth; depth <= maxDepth; depth++)
                 {
                     timespec start = {};
                     timespec end = {};
-
                     PerftInfo info = {};
-                    std::cout << "~ Running perft test with depth " << depth << "\n";
+                    std::cout << "~ Running depth " << depth << " perft\n";
+
                     clock_gettime(CLOCK_REALTIME, &start);
                     perft(depth, info);
                     clock_gettime(CLOCK_REALTIME, &end);
@@ -276,26 +325,11 @@ ____  __.           ))   `\_) .__
                     double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
                     double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
                     double msElapsed = endMillis - startMillis;
-                    
-                    double branchingFactor = (double)(info.totalNodes - 1) / (double)(info.totalNodes - info.leafNodes);
-
-                    std::cout << "\t~ Depth " << depth << " results:\n";
-                    std::cout << "\t\t~ Time: " << msElapsed << "ms\n";
-                    std::cout << "\t\t~ kN/s: " << (double)info.totalNodes / msElapsed << "\n";
-                    std::cout << "\t\t~ Branching factor: " <<  branchingFactor << "\n";
-                    std::cout << "\t\t~ Total nodes: " << info.totalNodes << "\n";
-                    std::cout << "\t\t~ Leaf nodes: " << info.leafNodes << "\n";
-                    std::cout << "\t\t~ Leaf checks: " << info.leafChecks << "\n";
-                    std::cout << "\t\t~ Leaf checkmates: " << info.leafCheckmates << "\n";
-                    std::cout << "\t\t~ Leaf stalemates: " << info.leafStalemates << "\n";
-                    std::cout << "\t\t~ Leaf promotions: " << info.leafPromotions << "\n";
-                    std::cout << "\t\t~ Leaf captures: " << info.leafCaptures << "\n";
-                    std::cout << "\t\t~ Leaf castles: " << info.leafCastles << "\n";
-                    std::cout << "\t\t~ Leaf en passants: " << info.leafEnPassants << "\n";
+                    printPerftInfo(info, depth, msElapsed);
                 }
-                std::cout << "~ Perft test complete\n";
-                showReady();
             }
+            std::cout << "~ Perft test complete\n";
+            showReady();
         }
         else if (command == "uci")
         {
