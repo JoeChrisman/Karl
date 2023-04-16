@@ -179,33 +179,49 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
 template<bool isWhite>
 void Position::makeMove(const Move move)
 {
-    const Square from = Moves::getFrom(move);
-    const Square to = Moves::getTo(move);
+    const Square squareFrom = Moves::getFrom(move);
+    const Square squareTo = Moves::getTo(move);
     const Piece moving = Moves::getMoved(move);
     const Piece captured = Moves::getCaptured(move);
     const Piece promoted = Moves::getPromoted(move);
 
+    const U64 to = getBoard(squareTo);
+    const U64 from = getBoard(squareFrom);
+
     // remove the piece
-    bitboards[moving] ^= getBoard(from);
-    pieces[from] = NULL_PIECE;
+    bitboards[moving] ^= from;
+    pieces[squareFrom] = NULL_PIECE;
 
     // remove castling rights
-    rights.castlingFlags &= CASTLING_FLAGS[to];
-    rights.castlingFlags &= CASTLING_FLAGS[from];
+    rights.castlingFlags &= CASTLING_FLAGS[squareTo];
+    rights.castlingFlags &= CASTLING_FLAGS[squareFrom];
 
     // if we promoted
     if (promoted != NULL_PIECE)
     {
         // put the promoted piece on the target square
-        pieces[to] = promoted;
-        bitboards[promoted] |= getBoard(to);
+        pieces[squareTo] = promoted;
+        bitboards[promoted] |= to;
     }
     // if we did not promote
     else
     {
         // put the moving piece on the target square
-        pieces[to] = moving;
-        bitboards[moving] |= getBoard(to);
+        pieces[squareTo] = moving;
+        bitboards[moving] |= to;
+    }
+
+    // if we pushed a pawn two squares
+    if (move & Moves::DOUBLE_PAWN_PUSH)
+    {
+        // enable en passant square
+        rights.enPassantFile = getFile(squareTo);
+    }
+    // if we did not enable an en passant move
+    else
+    {
+        // disable en passant move from last time
+        rights.enPassantFile = -1;
         // if we castled short
         if (move & Moves::SHORT_CASTLE)
         {
@@ -218,7 +234,7 @@ void Position::makeMove(const Move move)
             pieces[rookTo] = eastRook;
             bitboards[eastRook] |= getBoard(rookTo);
         }
-        // if we castled long
+            // if we castled long
         else if (move & Moves::LONG_CASTLE)
         {
             static constexpr Piece westRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
@@ -230,39 +246,26 @@ void Position::makeMove(const Move move)
             pieces[rookTo] = westRook;
             bitboards[westRook] |= getBoard(rookTo);
         }
-    }
+        // if we captured en passant
+        else if (move & Moves::EN_PASSANT)
+        {
+            // perform en passant capture
+            const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
+            const U64 enPassantCapture = isWhite ? south(to) : north(to);
 
-    // if we pushed a pawn two squares
-    if (move & Moves::DOUBLE_PAWN_PUSH)
-    {
-        // enable en passant square
-        rights.enPassantFile = getFile(to);
-    }
-    // if we did not enable an en passant move
-    else
-    {
-        // disable en passant move from last time
-        rights.enPassantFile = -1;
-    }
-
-    // if we captured en passant
-    if (move & Moves::EN_PASSANT)
-    {
-        // perform en passant capture
-        const Square enPassantCapture = isWhite ? south(to) : north(to);
-        bitboards[captured] ^= getBoard(enPassantCapture);
-        pieces[enPassantCapture] = NULL_PIECE;
-    }
-    // if we captured normally
-    else if (captured != NULL_PIECE)
-    {
-        // remove the captured piece
-        bitboards[captured] ^= getBoard(to);
+            bitboards[captured] ^= enPassantCapture;
+            pieces[enPassantCaptureSquare] = NULL_PIECE;
+        }
+        // if we captured normally
+        else if (captured != NULL_PIECE)
+        {
+            // remove the captured piece
+            bitboards[captured] ^= to;
+        }
     }
 
     rights.isWhiteToMove = !rights.isWhiteToMove;
     updateBitboards();
-
 }
 
 template<bool isWhite>
@@ -270,27 +273,30 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
 {
     rights = previousRights;
 
-    const Square from = Moves::getFrom(move);
-    const Square to = Moves::getTo(move);
+    const Square squareFrom = Moves::getFrom(move);
+    const Square squareTo = Moves::getTo(move);
     const Piece moved = Moves::getMoved(move);
     const Piece captured = Moves::getCaptured(move);
     const Piece promoted = Moves::getPromoted(move);
 
+    const U64 from = getBoard(squareFrom);
+    const U64 to = getBoard(squareTo);
+
     // move the piece back
-    pieces[from] = moved;
-    pieces[to] = NULL_PIECE;
-    bitboards[moved] |= getBoard(from);
-    bitboards[moved] &= ~getBoard(to);
+    pieces[squareFrom] = moved;
+    pieces[squareTo] = NULL_PIECE;
+    bitboards[moved] |= from;
+    bitboards[moved] &= ~to;
 
 
     // if we are un-promoting
     if (promoted != NULL_PIECE)
     {
         // remove the promoted piece
-        bitboards[promoted] ^= getBoard(to);
+        bitboards[promoted] ^= to;
         // replace a captured piece
-        pieces[to] = captured;
-        bitboards[captured] |= getBoard(to);
+        pieces[squareTo] = captured;
+        bitboards[captured] |= to;
     }
     // if we are undoing kingside castling
     else if (move & Moves::SHORT_CASTLE)
@@ -319,14 +325,15 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
     // if we are un-capturing en passant
     else if (move & Moves::EN_PASSANT)
     {
-        const Square enPassantCapture = isWhite ? south(to) : north(to);
-        pieces[enPassantCapture] = captured;
-        bitboards[captured] |= getBoard(enPassantCapture);
+        const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
+        const U64 enPassantCapture = isWhite ? south(to) : north(to);
+        pieces[enPassantCaptureSquare] = captured;
+        bitboards[captured] |= enPassantCapture;
     }
     else if (captured != NULL_PIECE)
     {
-        pieces[to] = captured;
-        bitboards[captured] |= getBoard(to);
+        pieces[squareTo] = captured;
+        bitboards[captured] |= to;
     }
 
     updateBitboards();

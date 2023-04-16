@@ -4,6 +4,7 @@
 
 #include <ctime>
 #include <sstream>
+#include <fstream>
 #include "Cli.h"
 #include "Notation.h"
 
@@ -99,6 +100,79 @@ namespace
             Position::unMakeMove(move, rightsCopy);
         }
     }
+
+    void runPerftSuite()
+    {
+        int passes = 0;
+        int failures = 0;
+
+        std::ifstream tests("../perftSuite.txt");
+
+        U64 totalNodes = 0;
+        timespec start = {};
+        timespec end = {};
+        clock_gettime(CLOCK_REALTIME, &start);
+
+        // read each test
+        std::string test;
+        while (std::getline(tests, test))
+        {
+            std::vector<std::string> testContents;
+            size_t index = test.find(';');
+            testContents.push_back(test.substr(0, index - 1));
+            test = test.substr(index + 1, test.length() - index);
+            // split each test string by semicolon delimiter
+            do
+            {
+                index = test.find(';');
+                testContents.push_back(test.substr(2, index - 2));
+                test = test.substr(index + 1, test.length() - index);
+            }
+            while (index != std::string::npos);
+
+            // the first string read was the fen string
+            if (!Position::init(testContents[0]))
+            {
+                std::cout << "~ Invalid FEN string found in file \"perftSuite.txt\"\n";
+                return;
+            }
+
+            std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
+            // the rest of the strings are depths and node counts
+            for (int depth = 1; depth < testContents.size(); depth++)
+            {
+                PerftInfo info = {};
+                perft(depth, info);
+                totalNodes += info.totalNodes;
+                int nodes = std::stoi(testContents[depth]);
+                if (info.nodes == nodes)
+                {
+                    std::cout << "~ [PASS] Perft unit test at depth " << depth << " passed with " << info.nodes << " nodes\n";
+                    passes++;
+                }
+                else
+                {
+                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed with " << info.nodes << " nodes\n";
+                    std::cout << "\t~ Expected " << nodes << " nodes, but found " << info.nodes << "\n";
+                    failures++;
+                }
+            }
+        }
+        clock_gettime(CLOCK_REALTIME, &end);
+
+        double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
+        double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
+        double msElapsed = endMillis - startMillis;
+
+        std::cout << "~ Perft suite run complete\n";
+        std::cout << "\t~ =========================\n";
+        std::cout << "\t~ Tests ran    | " << passes + failures << "\n";
+        std::cout << "\t~ Time         | " << msElapsed / 1000 << "s\n";
+        std::cout << "\t~ kN/s         | " << (double)totalNodes / msElapsed << "\n";
+        std::cout << "\t~ Tests passed | " << passes << "\n";
+        std::cout << "\t~ Tests failed | " << failures << "\n";
+        std::cout << "\t~ =========================\n";
+    }
 }
 
 int Cli::runKarlCli()
@@ -154,14 +228,15 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ To promote, append the promotion type to the end of the move, such as \"e7e8q\"\n";
             std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
             std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
-            std::cout << "\t~ \"perft (split) <min> {max}\" to run a perft test\n";
+            std::cout << "\t~ \"perft (split) (suite) {min} {max}\" to run a perft test\n";
             std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
-            std::cout << "\t\t~ The field \"<min>\" is the lowest depth to search to\n";
+            std::cout << "\t\t~ The field \"{min}\" is the lowest depth to search to\n";
             std::cout << "\t\t~ The field \"{max}\" is the highest depth to search to\n";
-            std::cout << "\t\t~ All depths between \"<min>\" and \"{max}\" will be searched\n";
-            std::cout << "\t\t~ If \"{max}\" is omitted, only the \"<min>\" depth will be searched\n";
+            std::cout << "\t\t~ All depths between \"{min}\" and \"{max}\" will be searched\n";
+            std::cout << "\t\t~ If \"{max}\" is omitted, only the \"{min}\" depth will be searched\n";
             std::cout << "\t\t~ If \"{max}\" is omitted, and the \"(split)\" flag is present, split mode will be enabled\n";
             std::cout << "\t\t~ split mode only accepts one depth value and shows the number of leaf nodes after each move\n";
+            std::cout << "\t\t~ If \"{max}\" and \"{min}\" are omitted, and the \"(suite)\" flag is present, a test suite will be run\n";
             std::cout << "\t~ \"uci\" to enter UCI mode\n";
             std::cout << "\t~ \"help\" to see this list of commands\n";
             showReady();
@@ -209,6 +284,10 @@ ____  __.           ))   `\_) .__
             Move legalMove = Moves::NULL_MOVE;
             for (const Move move : Gen::moveList)
             {
+                if (move == Moves::NULL_MOVE)
+                {
+                    break;
+                }
                 if (Notation::moveToStr(move) == notation)
                 {
                     legalMove = move;
@@ -273,6 +352,13 @@ ____  __.           ))   `\_) .__
             stream >> arg1; // skip "perft"
             stream >> arg1; // read "split" or a number
             stream >> arg2; // read a number
+
+            if (arg1 == "suite")
+            {
+                runPerftSuite();
+                showReady();
+                continue;
+            }
 
             int minDepth = -1;
             int maxDepth = -1;
