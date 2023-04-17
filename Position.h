@@ -5,6 +5,7 @@
 #ifndef KARL_POSITION_H
 #define KARL_POSITION_H
 
+#include "Eval.h"
 #include "Moves.h"
 
 namespace Position
@@ -23,10 +24,7 @@ namespace Position
     extern U64 whiteOrEmpty;
     extern U64 blackOrEmpty;
 
-    inline constexpr int WHITE_CASTLE_SHORT = 0x1;
-    inline constexpr int WHITE_CASTLE_LONG = 0x2;
-    inline constexpr int BLACK_CASTLE_SHORT = 0x4;
-    inline constexpr int BLACK_CASTLE_LONG = 0x8;
+    extern Score materialScore;
 
     extern struct Rights
     {
@@ -47,6 +45,11 @@ namespace Position
 
     template<bool isWhite>
     void unMakeMove(const Move move, const Rights& previousRights);
+
+    inline constexpr int WHITE_CASTLE_SHORT = 0x1;
+    inline constexpr int WHITE_CASTLE_LONG = 0x2;
+    inline constexpr int BLACK_CASTLE_SHORT = 0x4;
+    inline constexpr int BLACK_CASTLE_LONG = 0x8;
 
     void print(bool isWhiteOnBottom);
 };

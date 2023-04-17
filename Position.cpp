@@ -17,6 +17,7 @@ U64 Position::whiteOrEmpty = EMPTY_BOARD;
 U64 Position::blackOrEmpty = EMPTY_BOARD;
 
 Position::Rights Position::rights = {};
+Score Position::materialScore = 0;
 
 namespace
 {
@@ -66,6 +67,7 @@ bool Position::init(const std::string& fen)
         {
             pieces[square] = piece;
             bitboards[piece] |= getBoard(square++);
+            materialScore += Eval::PIECE_SCORES[piece];
         }
         else if (isdigit(letter))
         {
@@ -202,6 +204,8 @@ void Position::makeMove(const Move move)
         // put the promoted piece on the target square
         pieces[squareTo] = promoted;
         bitboards[promoted] |= to;
+
+        materialScore += Eval::PIECE_SCORES[promoted];
     }
     // if we did not promote
     else
@@ -253,12 +257,14 @@ void Position::makeMove(const Move move)
             const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
             const U64 enPassantCapture = isWhite ? south(to) : north(to);
 
+            materialScore -= Eval::PIECE_SCORES[isWhite ? BLACK_PAWN : WHITE_PAWN];
             bitboards[captured] ^= enPassantCapture;
             pieces[enPassantCaptureSquare] = NULL_PIECE;
         }
         // if we captured normally
         else if (captured != NULL_PIECE)
         {
+            materialScore -= Eval::PIECE_SCORES[captured];
             // remove the captured piece
             bitboards[captured] ^= to;
         }
@@ -288,7 +294,6 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
     bitboards[moved] |= from;
     bitboards[moved] &= ~to;
 
-
     // if we are un-promoting
     if (promoted != NULL_PIECE)
     {
@@ -297,6 +302,9 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
         // replace a captured piece
         pieces[squareTo] = captured;
         bitboards[captured] |= to;
+
+        materialScore += Eval::PIECE_SCORES[captured];
+        materialScore -= Eval::PIECE_SCORES[promoted];
     }
     // if we are undoing kingside castling
     else if (move & Moves::SHORT_CASTLE)
@@ -329,11 +337,13 @@ void Position::unMakeMove(const Move move, const Rights& previousRights)
         const U64 enPassantCapture = isWhite ? south(to) : north(to);
         pieces[enPassantCaptureSquare] = captured;
         bitboards[captured] |= enPassantCapture;
+        materialScore += Eval::PIECE_SCORES[isWhite ? BLACK_PAWN : WHITE_PAWN];
     }
     else if (captured != NULL_PIECE)
     {
         pieces[squareTo] = captured;
         bitboards[captured] |= to;
+        materialScore += Eval::PIECE_SCORES[captured];
     }
 
     updateBitboards();

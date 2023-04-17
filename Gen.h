@@ -7,7 +7,6 @@
 
 #include "Position.h"
 #include "Magics.h"
-#include <array>
 
 namespace Gen
 {
@@ -16,7 +15,7 @@ namespace Gen
     void genMoves();
     void genCaptures();
 
-    bool isInCheck();
+    extern int numMoves;
 
     extern U64 resolverSquares;
     extern U64 safeSquares;

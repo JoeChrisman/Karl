@@ -3,3 +3,9 @@
 //
 
 #include "Eval.h"
+#include "Position.h"
+
+Score Eval::evaluate(Score material)
+{
+    return material;
+}

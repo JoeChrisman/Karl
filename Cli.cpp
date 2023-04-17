@@ -58,14 +58,12 @@ namespace
         }
         Position::Rights rightsCopy = Position::rights;
         Gen::genMoves();
-        Move moveList[256];
-        std::memcpy(moveList, Gen::moveList, sizeof(Gen::moveList));
-        for (Move move : moveList)
+        Move moves[256];
+        std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
+        int numMoves = Gen::numMoves;
+        for (int i = 0; i < numMoves; i++)
         {
-            if (move == Moves::NULL_MOVE)
-            {
-                break;
-            }
+            Move move = moves[i];
             if (depth == 1)
             {
                 if (Moves::getCaptured(move) != NULL_PIECE)
@@ -268,7 +266,8 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "go")
         {
-            std::cout << "~ Best move: " << Notation::moveToStr(Search::getBestMove()) << "\n";
+            Move best = Search::getBestMove();
+            std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
             showReady();
         }
         else if (command == "who")
@@ -288,12 +287,9 @@ ____  __.           ))   `\_) .__
             std::string notation = command.substr(9, std::string::npos);
             Gen::genMoves();
             Move legalMove = Moves::NULL_MOVE;
-            for (const Move move : Gen::moveList)
+            for (int i = 0; i < Gen::numMoves; i++)
             {
-                if (move == Moves::NULL_MOVE)
-                {
-                    break;
-                }
+                Move move = Gen::moveList[i];
                 if (Notation::moveToStr(move) == notation)
                 {
                     legalMove = move;
@@ -315,26 +311,20 @@ ____  __.           ))   `\_) .__
         else if (command == "moves")
         {
             Gen::genMoves();
-            for (Move move : Gen::moveList)
+            std::cout << "~ There are " << Gen::numMoves << " moves\n";
+            for (int i = 0; i < Gen::numMoves; i++)
             {
-                if (move == Moves::NULL_MOVE)
-                {
-                    break;
-                }
-                std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
+                std::cout << "\t~ " << Notation::moveToStr(Gen::moveList[i]) << "\n";
             }
             showReady();
         }
         else if (command == "captures")
         {
             Gen::genCaptures();
-            for (Move move : Gen::moveList)
+            std::cout << "~ There are " << Gen::numMoves << " captures\n";
+            for (int i = 0; i < Gen::numMoves; i++)
             {
-                if (move == Moves::NULL_MOVE)
-                {
-                    break;
-                }
-                std::cout << "\t~ " << Notation::moveToStr(move) << "\n";
+                std::cout << "\t~ " << Notation::moveToStr(Gen::moveList[i]) << "\n";
             }
             showReady();
         }
@@ -494,13 +484,11 @@ int Cli::runKarlUci()
                     }
                 }
             }
-            Position::print(true);
         }
-        else if (command == "go")
+        else if (command.substr(0, 2) == "go")
         {
-            std::cout << "bestmove " <<Notation::moveToStr(Search::getBestMove()) << "\n";
+            std::cout << "bestmove " << Notation::moveToStr(Search::getBestMove()) << "\n";
         }
-
     }
     return 0;
 }

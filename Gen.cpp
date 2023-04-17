@@ -11,12 +11,12 @@ U64 Gen::safeSquares = EMPTY_BOARD;
 U64 Gen::cardinalPins = EMPTY_BOARD;
 U64 Gen::ordinalPins = EMPTY_BOARD;
 
+int Gen::numMoves = 0;
+
 namespace
 {
     U64 knightMoves[64];
     U64 kingMoves[64];
-
-    int moveIndex = 0;
 
     void initKnightMoves()
     {
@@ -139,7 +139,8 @@ namespace
              promoted <= (isWhite ? WHITE_QUEEN : BLACK_QUEEN);
              promoted++)
         {
-            Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, captured, promoted);
+            Gen::moveList[Gen::numMoves++] =
+                    Moves::createMove(from, to, pieceMoving, captured, promoted);
         }
     }
 
@@ -258,13 +259,15 @@ namespace
         {
             const Square to = popFirstPiece(eastCaptures);
             const Square from = isWhite ? southWest(to) : northWest(to);
-            Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+            Gen::moveList[Gen::numMoves++] =
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
         }
         while (westCaptures)
         {
             const Square to = popFirstPiece(westCaptures);
             const Square from = isWhite ? southEast(to) : northEast(to);
-            Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+            Gen::moveList[Gen::numMoves++] =
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
         }
 
         const int enPassantFile = Position::rights.enPassantFile;
@@ -296,7 +299,8 @@ namespace
                 const Square from = isWhite ? southWest(to) : northWest(to);
                 if (!isEnPassantHorizontallyPinned<isWhite>(from, to))
                 {
-                    Gen::moveList[moveIndex++] = Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, pawnCapturing);
+                    Gen::moveList[Gen::numMoves++] =
+                            Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, pawnCapturing);
                 }
             }
             if (westCapture)
@@ -305,7 +309,8 @@ namespace
                 const Square from = isWhite ? southEast(to) : northEast(to);
                 if (!isEnPassantHorizontallyPinned<isWhite>(from, to))
                 {
-                    Gen::moveList[moveIndex++] = Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, pawnCapturing);
+                    Gen::moveList[Gen::numMoves++] =
+                            Moves::EN_PASSANT | Moves::createMove(from, to, pieceMoving, pawnCapturing);
                 }
             }
         }
@@ -321,7 +326,8 @@ namespace
             {
                 const Square to = popFirstPiece(singlePawnPushes);
                 const Square from = isWhite ? south(to) : north(to);
-                Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, NULL_PIECE);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::createMove(from, to, pieceMoving, NULL_PIECE);
             }
 
             U64 doublePawnPushes = (isWhite ? north(pushed1) : south(pushed1))
@@ -332,7 +338,8 @@ namespace
             {
                 const Square to = popFirstPiece(doublePawnPushes);
                 const Square from = isWhite ? south<2>(to) : north<2>(to);
-                Gen::moveList[moveIndex++] = Moves::DOUBLE_PAWN_PUSH | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::DOUBLE_PAWN_PUSH | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
             }
 
         }
@@ -362,7 +369,8 @@ namespace
             while (moves)
             {
                 Square to = popFirstPiece(moves);
-                Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
             }
         }
     }
@@ -393,7 +401,8 @@ namespace
             while (moves)
             {
                 const Square to = popFirstPiece(moves);
-                Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
             }
         }
     }
@@ -424,7 +433,8 @@ namespace
             while (moves)
             {
                 const Square to = popFirstPiece(moves);
-                Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
             }
         }
     }
@@ -467,7 +477,8 @@ namespace
             while (moves)
             {
                 const Square to = popFirstPiece(moves);
-                Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+                Gen::moveList[Gen::numMoves++] =
+                        Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
             }
         }
     }
@@ -490,7 +501,8 @@ namespace
         while (moves)
         {
             const Square to = popFirstPiece(moves);
-            Gen::moveList[moveIndex++] = Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
+            Gen::moveList[Gen::numMoves++] =
+                    Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
         }
 
         if constexpr (quiets)
@@ -506,7 +518,8 @@ namespace
                     (shortEmptySquares & Position::emptySquares) == shortEmptySquares)
                 {
                     const int to = isWhite ? G1 : G8;
-                    Gen::moveList[moveIndex++] = Moves::SHORT_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
+                    Gen::moveList[Gen::numMoves++] =
+                            Moves::SHORT_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
                 }
             }
             if (Position::rights.castlingFlags & castleLong)
@@ -517,7 +530,8 @@ namespace
                     (longEmptySquares & Position::emptySquares) == longEmptySquares)
                 {
                     const int to = isWhite ? C1 : C8;
-                    Gen::moveList[moveIndex++] = Moves::LONG_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
+                    Gen::moveList[Gen::numMoves++] =
+                            Moves::LONG_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
                 }
             }
         }
@@ -674,6 +688,8 @@ namespace
     template<bool isWhite, bool quiets>
     void genLegalMoves()
     {
+        Gen::numMoves = 0;
+
         std::memset(Gen::moveList, Moves::NULL_MOVE, sizeof(Gen::moveList));
         updateSafeSquares<isWhite>();
         updateResolverSquares<isWhite>();
@@ -686,8 +702,6 @@ namespace
         genRookMoves<isWhite, quiets>();
         genBishopMoves<isWhite, quiets>();
         genQueenMoves<isWhite, quiets>();
-
-        moveIndex = 0;
     }
 }
 
@@ -706,7 +720,7 @@ void Gen::genMoves()
 void Gen::init()
 {
     std::memset(Gen::moveList, Moves::NULL_MOVE, sizeof(Gen::moveList));
-    moveIndex = 0;
+    numMoves = 0;
     initKnightMoves();
     initKingMoves();
 }
@@ -722,10 +736,4 @@ void Gen::genCaptures()
     {
         genLegalMoves<false, false>();
     }
-}
-
-bool Gen::isInCheck()
-{
-    const Piece king = Position::rights.isWhiteToMove ? WHITE_KING : BLACK_KING;
-    return ~safeSquares & Position::bitboards[king];
 }

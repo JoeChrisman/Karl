@@ -8,10 +8,12 @@
 #include "Eval.h"
 #include "Gen.h"
 
-namespace Search {
+namespace Search
+{
+    inline constexpr int MAX_DEPTH = 100;
 
     Move getBestMove();
+    Score negamax(int turn, int depth);
 };
-
 
 #endif //KARL_SEARCH_H
