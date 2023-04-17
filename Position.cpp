@@ -37,6 +37,8 @@ namespace
 
 bool Position::init(const std::string& fen)
 {
+    Position::rights.currentPly++;
+
     clear();
 
     std::vector<std::string> fenParts;

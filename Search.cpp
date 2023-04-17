@@ -29,6 +29,12 @@ Move Search::getBestMove()
         Position::unMakeMove(move, rights);
         //std::cout << Notation::moveToStr(move) << ": " << score << "\n";
     }
+    // add some variance during the opening...
+    // when Karl plays bots usially the same game happens over and over again
+    if (Position::rights.currentPly < 7)
+    {
+        return moves[rand() % numMoves];
+    }
     return bestMove;
 }
 

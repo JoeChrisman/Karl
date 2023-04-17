@@ -427,7 +427,7 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "uci")
         {
-            runKarlUci();
+            return runKarlUci();
         }
         else
         {
@@ -448,7 +448,11 @@ int Cli::runKarlUci()
     std::string command;
     while (std::getline(std::cin, command))
     {
-        if (command == "isready")
+        if (command == "quit")
+        {
+            return 0;
+        }
+        else if (command == "isready")
         {
             std::cout << "readyok\n";
         }
