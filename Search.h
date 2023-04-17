@@ -10,6 +10,7 @@
 
 namespace Search {
 
+    Move getBestMove();
 };
 
 

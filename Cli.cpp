@@ -217,6 +217,7 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
             std::cout << "\t~ \"show\" to show the current position\n";
+            std::cout << "\t~ \"go\" to start engine analysis\n";
             std::cout << "\t~ \"who\" to show who's turn it is\n";
             std::cout << "\t~ \"flip\" to flip the board\n";
             std::cout << "\t~ \"pass\" to switch turns without making a move\n";
@@ -263,6 +264,11 @@ ____  __.           ))   `\_) .__
         else if (command == "show")
         {
             Position::print(isWhiteOnBottom);
+            showReady();
+        }
+        else if (command == "go")
+        {
+            std::cout << "~ Best move: " << Notation::moveToStr(Search::getBestMove()) << "\n";
             showReady();
         }
         else if (command == "who")
@@ -445,5 +451,56 @@ ____  __.           ))   `\_) .__
 
 int Cli::runKarlUci()
 {
+    std::cout << "id name Karl " << VERSION << "\n";
+    std::cout << "id author Joe Chrisman\n";
+    std::cout << "uciok\n";
+
+    std::string command;
+    while (std::getline(std::cin, command))
+    {
+        if (command == "isready")
+        {
+            std::cout << "readyok\n";
+        }
+        else if (command.substr(0, 8) == "position")
+        {
+            size_t movesIndex = command.find("moves");
+            if (command.substr(9, 8) == "startpos")
+            {
+                Position::init(INITIAL_FEN);
+            }
+            else
+            {
+                Position::init(command.substr(9, movesIndex));
+            }
+            if (movesIndex != std::string::npos)
+            {
+                std::stringstream moves(command.substr(movesIndex + 5, std::string::npos));
+                std::string moveStr;
+                while (moves >> moveStr)
+                {
+                    Gen::genMoves();
+                    for (const Move move : Gen::moveList)
+                    {
+                        if (move == Moves::NULL_MOVE)
+                        {
+                            break;
+                        }
+                        if (moveStr == Notation::moveToStr(move))
+                        {
+                            Position::makeMove(move);
+                            break;
+                        }
+                    }
+                }
+            }
+            Position::print(true);
+        }
+        else if (command == "go")
+        {
+            std::cout << "bestmove " <<Notation::moveToStr(Search::getBestMove()) << "\n";
+        }
+
+    }
     return 0;
 }

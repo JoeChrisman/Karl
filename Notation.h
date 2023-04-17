@@ -15,9 +15,6 @@ namespace Notation
     std::string pieceToUnicode(const Piece piece);
 
     int charToFile(const char fileChar);
-    int charToRank(const char rankChar);
-
-    Square strToSquare(const std::string& notation);
 
     std::string fileToStr(const int file);
     std::string  rankToStr(const int rank);
