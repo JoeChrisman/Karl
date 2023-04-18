@@ -427,7 +427,11 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "uci")
         {
-            return runKarlUci();
+            if (runKarlUci())
+            {
+                return 0;
+            }
+            showReady();
         }
         else
         {
@@ -448,9 +452,15 @@ int Cli::runKarlUci()
     std::string command;
     while (std::getline(std::cin, command))
     {
-        if (command == "quit")
+        // return to cli mode
+        if (command == "exit")
         {
             return 0;
+        }
+        // kill this entire process
+        if (command == "quit")
+        {
+            return 1;
         }
         else if (command == "isready")
         {

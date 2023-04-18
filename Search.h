@@ -13,7 +13,7 @@ namespace Search
     inline constexpr int MAX_DEPTH = 100;
 
     Move getBestMove();
-    Score negamax(int turn, int depth);
+    Score negamax(Color color, int depth);
 };
 
 #endif //KARL_SEARCH_H

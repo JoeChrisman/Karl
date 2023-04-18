@@ -7,8 +7,10 @@
 
 Move Search::getBestMove()
 {
-    Move bestMove = Moves::NULL_MOVE;
     Score bestScore = Eval::MIN_SCORE;
+
+    // moves equal to the best move
+    std::vector<Move> equals;
 
     Gen::genMoves();
     const int numMoves = Gen::numMoves;
@@ -20,29 +22,29 @@ Move Search::getBestMove()
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(rights.isWhiteToMove ? -1 : 1, 4);
+        Score score = -negamax(rights.isWhiteToMove ? BLACK : WHITE, 4);
         if (score > bestScore)
         {
+            equals.clear();
+            equals.push_back(move);
             bestScore = score;
-            bestMove = move;
+        }
+        else if (score == bestScore)
+        {
+            equals.push_back(move);
         }
         Position::unMakeMove(move, rights);
-        //std::cout << Notation::moveToStr(move) << ": " << score << "\n";
     }
-    // add some variance during the opening...
-    // when Karl plays bots usially the same game happens over and over again
-    if (Position::rights.currentPly < 7)
-    {
-        return moves[rand() % numMoves];
-    }
-    return bestMove;
+    // add some variance during the game because when carl goes against other
+    // engines the same game often happens over and over again
+    return equals[rand() % equals.size()];
 }
 
-Score Search::negamax(int turn, int depth)
+Score Search::negamax(Color color, int depth)
 {
     if (!depth)
     {
-        return Eval::evaluate(Position::materialScore) * turn;
+        return Eval::evaluate(Position::materialScore) * color;
     }
 
     Score best = Eval::MIN_SCORE;
@@ -50,7 +52,7 @@ Score Search::negamax(int turn, int depth)
     const int numMoves = Gen::numMoves;
     if (!numMoves)
     {
-        if (~Gen::safeSquares & Position::bitboards[turn == 1 ? WHITE_KING : BLACK_KING])
+        if (~Gen::safeSquares & Position::bitboards[color == WHITE ? WHITE_KING : BLACK_KING])
         {
             return Eval::MIN_SCORE + MAX_DEPTH - depth;
         }
@@ -66,7 +68,7 @@ Score Search::negamax(int turn, int depth)
     {
         Move move = moves[i];
         Position::makeMove(move);
-        Score score = -negamax(-turn, depth - 1);
+        Score score = -negamax((Color)-color, depth - 1);
         if (score > best)
         {
             best = score;

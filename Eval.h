@@ -7,6 +7,8 @@
 
 #include "Defs.h"
 
+typedef short Score;
+
 namespace Eval
 {
     Score evaluate(Score material);

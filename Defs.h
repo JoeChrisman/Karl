@@ -13,7 +13,12 @@
 typedef unsigned long long U64;
 typedef int Piece;
 typedef int Square;
-typedef int Score;
+
+enum Color
+{
+    WHITE = 1,
+    BLACK = -1
+};
 
 const std::string VERSION = "0.3 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
