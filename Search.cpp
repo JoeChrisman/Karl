@@ -7,16 +7,13 @@
 
 namespace
 {
-
-    Hash history[Search::MAX_MOVES];
-
     bool isRepetition()
     {
         int repetitions = 1;
         int index = Position::totalPlies - Position::irreversibles.reversiblePlies;
-        while (index < Position::totalPlies)
+        while (index <= Position::totalPlies)
         {
-            if (Position::hash == history[index++])
+            if (Position::hash == Position::history[index++])
             {
                 repetitions++;
             }
@@ -47,7 +44,7 @@ namespace
             }
             else
             {
-                return Eval::DRAW_SCORE;
+                return Eval::CONTEMPT;
             }
         }
         Move moves[256];
@@ -86,7 +83,8 @@ Move Search::getBestMove()
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(BLACK, 4);
+        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 4);
+        std::cout << Notation::moveToStr(move) << ": " << score << "\n";
         if (score > bestScore)
         {
             equals.clear();

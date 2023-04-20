@@ -474,6 +474,7 @@ ____  __.           ))   `\_) .__
 
 int Cli::runKarlUci()
 {
+    std::cout << std::flush;
     std::cout << "id name Karl " << VERSION << "\n";
     std::cout << "id author Joe Chrisman\n";
     std::cout << "uciok\n";

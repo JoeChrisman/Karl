@@ -18,8 +18,9 @@ U64 Position::blackPieces = EMPTY_BOARD;
 U64 Position::whiteOrEmpty = EMPTY_BOARD;
 U64 Position::blackOrEmpty = EMPTY_BOARD;
 
-bool Position::isWhiteToMove = true;
+Hash Position::history[MAX_MOVES] = {0};
 
+bool Position::isWhiteToMove = true;
 Position::Irreversibles Position::irreversibles = {};
 Score Position::materialScore = 0;
 int Position::totalPlies = 0;
@@ -66,7 +67,7 @@ namespace
         Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareFrom];
         Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];
 
-        if (moving == isWhite ? WHITE_PAWN : BLACK_PAWN)
+        if (moving == (isWhite ? WHITE_PAWN : BLACK_PAWN))
         {
             // pawn moves are irreversible moves
             Position::irreversibles.reversiblePlies = 0;
@@ -99,9 +100,6 @@ namespace
             int enPassantFile = getFile(squareTo);
             Position::irreversibles.enPassantFile = enPassantFile;
             Position::hash ^= Zobrist::EN_PASSANT[enPassantFile];
-
-            // pawn pushes are irreversible moves
-            Position::irreversibles.reversiblePlies = 0;
         }
         // if we did not enable an en passant move
         else
@@ -151,9 +149,6 @@ namespace
                 Position::bitboards[captured] ^= enPassantCapture;
                 Position::pieces[enPassantCaptureSquare] = NULL_PIECE;
                 Position::hash ^= Zobrist::PIECES[enPassantCaptureSquare][captured];
-
-                // en passant captures are irreversible moves
-                Position::irreversibles.reversiblePlies = 0;
             }
             // if we captured normally
             else if (captured != NULL_PIECE)
@@ -171,6 +166,8 @@ namespace
         Position::isWhiteToMove = !Position::isWhiteToMove;
         Position::hash ^= Zobrist::WHITE_TO_MOVE;
         Position::updateBitboards();
+
+        Position::history[Position::totalPlies] = Position::hash;
     }
 
     template<bool isWhite>

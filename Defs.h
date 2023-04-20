@@ -22,8 +22,10 @@ enum Color
 
 const std::string VERSION = "0.3 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-const U64 EMPTY_BOARD = 0;
-const U64 FULL_BOARD = ~0;
+constexpr U64 EMPTY_BOARD = 0;
+constexpr U64 FULL_BOARD = ~0;
+
+constexpr int MAX_MOVES = 1024;
 
 constexpr U64 FILE_MASKS[8] = {
         0x0101010101010101,

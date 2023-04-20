@@ -39,6 +39,9 @@ namespace Position
         int reversiblePlies;
     } irreversibles;
 
+    extern Hash history[MAX_MOVES];
+
+
     void makeMove(const Move move);
     void unMakeMove(const Move move, const Irreversibles& state);
 

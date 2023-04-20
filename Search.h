@@ -11,8 +11,6 @@
 namespace Search
 {
     inline constexpr int MAX_DEPTH = 100;
-    inline constexpr int MAX_MOVES = 1024;
-
 
     Move getBestMove();
 };
