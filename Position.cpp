@@ -44,6 +44,9 @@ namespace
     template<bool isWhite>
     void doMove(const Move move)
     {
+        Position::totalPlies++;
+        Position::irreversibles.reversiblePlies++;
+
         const Square squareFrom = Moves::getFrom(move);
         const Square squareTo = Moves::getTo(move);
         const Piece moving = Moves::getMoved(move);
@@ -63,9 +66,16 @@ namespace
         Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareFrom];
         Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];
 
+        if (moving == isWhite ? WHITE_PAWN : BLACK_PAWN)
+        {
+            // pawn moves are irreversible moves
+            Position::irreversibles.reversiblePlies = 0;
+        }
+
         // if we promoted
         if (promoted != NULL_PIECE)
         {
+
             // put the promoted piece on the target square
             Position::pieces[squareTo] = promoted;
             Position::bitboards[promoted] |= to;
@@ -259,6 +269,8 @@ namespace
 
         Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];
         Position::hash ^= Zobrist::WHITE_TO_MOVE;
+
+        Position::totalPlies--;
         Position::isWhiteToMove = !Position::isWhiteToMove;
         Position::irreversibles = state;
         Position::updateBitboards();

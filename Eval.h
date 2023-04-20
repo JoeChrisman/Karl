@@ -16,6 +16,7 @@ namespace Eval
     inline constexpr Score MAX_SCORE = 30000;
     inline constexpr Score MIN_SCORE = -30000;
     inline constexpr Score DRAW_SCORE = 0;
+    inline constexpr Score CONTEMPT = 400;
 
     inline constexpr Score PIECE_SCORES[13] = {
             0,    // NULL_PIECE
