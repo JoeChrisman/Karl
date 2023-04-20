@@ -16,13 +16,13 @@ Move Search::getBestMove()
     const int numMoves = Gen::numMoves;
     Move moves[256];
     std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
-    const Position::Rights rights = Position::rights;
+    const Position::Irreversibles state = Position::irreversibles;
     for (int i = 0; i < numMoves; i++)
     {
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(rights.isWhiteToMove ? BLACK : WHITE, 4);
+        Score score = -negamax(Position::isWhiteToMove ? BLACK : WHITE, 4);
         if (score > bestScore)
         {
             equals.clear();
@@ -33,7 +33,7 @@ Move Search::getBestMove()
         {
             equals.push_back(move);
         }
-        Position::unMakeMove(move, rights);
+        Position::unMakeMove(move, state);
     }
     // add some variance during the game because when carl goes against other
     // engines the same game often happens over and over again
@@ -63,7 +63,7 @@ Score Search::negamax(Color color, int depth)
     }
     Move moves[256];
     std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
-    const Position::Rights rights = Position::rights;
+    const Position::Irreversibles state = Position::irreversibles;
     for (int i = 0; i < numMoves; i++)
     {
         Move move = moves[i];
@@ -73,7 +73,7 @@ Score Search::negamax(Color color, int depth)
         {
             best = score;
         }
-        Position::unMakeMove(move, rights);
+        Position::unMakeMove(move, state);
     }
 
     return best;

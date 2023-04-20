@@ -7,11 +7,14 @@
 
 #include "Eval.h"
 #include "Moves.h"
+#include "Zobrist.h"
 
 namespace Position
 {
     bool init(const std::string& fen);
     void clear();
+
+    extern Hash hash;
 
     extern U64 bitboards[13];
     extern Piece pieces[64];
@@ -26,25 +29,24 @@ namespace Position
 
     extern Score materialScore;
 
-    extern struct Rights
-    {
-        bool isWhiteToMove;
+    extern bool isWhiteToMove;
+    extern int totalPlies;
 
+    extern struct Irreversibles
+    {
         int castlingFlags;
         int enPassantFile;
-
-        int currentPly;
-        int lastIrreversiblePly;
-    } rights;
+        int reversiblePlies;
+    } irreversibles;
 
     void makeMove(const Move move);
-    void unMakeMove(const Move move, const Rights& previousRights);
+    void unMakeMove(const Move move, const Irreversibles& state);
 
     template<bool isWhite>
     void makeMove(const Move move);
 
     template<bool isWhite>
-    void unMakeMove(const Move move, const Rights& previousRights);
+    void unMakeMove(const Move move, const Irreversibles& state);
 
     inline constexpr int WHITE_CASTLE_SHORT = 0x1;
     inline constexpr int WHITE_CASTLE_LONG = 0x2;

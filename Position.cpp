@@ -6,6 +6,8 @@
 #include "Notation.h"
 #include <sstream>
 
+Hash Position::hash;
+
 U64 Position::bitboards[13];
 Piece Position::pieces[64];
 
@@ -16,8 +18,11 @@ U64 Position::blackPieces = EMPTY_BOARD;
 U64 Position::whiteOrEmpty = EMPTY_BOARD;
 U64 Position::blackOrEmpty = EMPTY_BOARD;
 
-Position::Rights Position::rights = {};
+bool Position::isWhiteToMove = true;
+
+Position::Irreversibles Position::irreversibles = {};
 Score Position::materialScore = 0;
+int Position::totalPlies = 0;
 
 namespace
 {
@@ -51,10 +56,12 @@ namespace
         // remove the piece
         Position::bitboards[moving] ^= from;
         Position::pieces[squareFrom] = NULL_PIECE;
+        Position::hash ^= Zobrist::PIECES[squareFrom][moving];
 
         // remove castling rights
-        Position::rights.castlingFlags &= CASTLING_FLAGS[squareTo];
-        Position::rights.castlingFlags &= CASTLING_FLAGS[squareFrom];
+        Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareTo];
+        Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareFrom];
+        Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];
 
         // if we promoted
         if (promoted != NULL_PIECE)
@@ -62,28 +69,39 @@ namespace
             // put the promoted piece on the target square
             Position::pieces[squareTo] = promoted;
             Position::bitboards[promoted] |= to;
+            Position::hash ^= Zobrist::PIECES[squareTo][promoted];
 
             Position::materialScore += Eval::PIECE_SCORES[promoted];
         }
-            // if we did not promote
+        // if we did not promote
         else
         {
             // put the moving piece on the target square
             Position::pieces[squareTo] = moving;
             Position::bitboards[moving] |= to;
+            Position::hash ^= Zobrist::PIECES[squareTo][moving];
         }
 
         // if we pushed a pawn two squares
         if (move & Moves::DOUBLE_PAWN_PUSH)
         {
             // enable en passant square
-            Position::rights.enPassantFile = getFile(squareTo);
+            int enPassantFile = getFile(squareTo);
+            Position::irreversibles.enPassantFile = enPassantFile;
+            Position::hash ^= Zobrist::EN_PASSANT[enPassantFile];
+
+            // pawn pushes are irreversible moves
+            Position::irreversibles.reversiblePlies = 0;
         }
-            // if we did not enable an en passant move
+        // if we did not enable an en passant move
         else
         {
-            // disable en passant move from last time
-            Position::rights.enPassantFile = -1;
+            if (Position::irreversibles.enPassantFile > -1)
+            {
+                // disable en passant move from last time
+                Position::hash ^= Zobrist::EN_PASSANT[Position::irreversibles.enPassantFile];
+                Position::irreversibles.enPassantFile = -1;
+            }
             // if we castled short
             if (move & Moves::SHORT_CASTLE)
             {
@@ -93,10 +111,13 @@ namespace
                 // move the east rook west of the king
                 Position::pieces[rookFrom] = NULL_PIECE;
                 Position::bitboards[eastRook] ^= getBoard(rookFrom);
+                Position::hash ^= Zobrist::PIECES[rookFrom][eastRook];
                 Position::pieces[rookTo] = eastRook;
                 Position::bitboards[eastRook] |= getBoard(rookTo);
+                Position::hash ^= Zobrist::PIECES[rookTo][eastRook];
+
             }
-                // if we castled long
+            // if we castled long
             else if (move & Moves::LONG_CASTLE)
             {
                 static constexpr Piece westRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
@@ -105,38 +126,46 @@ namespace
                 // move the west rook east of the king
                 Position::pieces[rookFrom] = NULL_PIECE;
                 Position::bitboards[westRook] ^= getBoard(rookFrom);
+                Position::hash ^= Zobrist::PIECES[rookFrom][westRook];
                 Position::pieces[rookTo] = westRook;
                 Position::bitboards[westRook] |= getBoard(rookTo);
+                Position::hash ^= Zobrist::PIECES[rookTo][westRook];
             }
-                // if we captured en passant
+            // if we captured en passant
             else if (move & Moves::EN_PASSANT)
             {
                 // perform en passant capture
                 const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
                 const U64 enPassantCapture = isWhite ? south(to) : north(to);
-
-                Position::materialScore -= Eval::PIECE_SCORES[isWhite ? BLACK_PAWN : WHITE_PAWN];
+                Position::materialScore -= Eval::PIECE_SCORES[captured];
                 Position::bitboards[captured] ^= enPassantCapture;
                 Position::pieces[enPassantCaptureSquare] = NULL_PIECE;
+                Position::hash ^= Zobrist::PIECES[enPassantCaptureSquare][captured];
+
+                // en passant captures are irreversible moves
+                Position::irreversibles.reversiblePlies = 0;
             }
-                // if we captured normally
+            // if we captured normally
             else if (captured != NULL_PIECE)
             {
                 Position::materialScore -= Eval::PIECE_SCORES[captured];
                 // remove the captured piece
                 Position::bitboards[captured] ^= to;
+                Position::hash ^= Zobrist::PIECES[squareTo][captured];
+
+                // captures are irreversible moves
+                Position::irreversibles.reversiblePlies = 0;
             }
         }
 
-        Position::rights.isWhiteToMove = !Position::rights.isWhiteToMove;
+        Position::isWhiteToMove = !Position::isWhiteToMove;
+        Position::hash ^= Zobrist::WHITE_TO_MOVE;
         Position::updateBitboards();
     }
 
     template<bool isWhite>
-    void undoMove(const Move move, const Position::Rights& previousRights)
+    void undoMove(const Move move, const Position::Irreversibles& state)
     {
-        Position::rights = previousRights;
-
         const Square squareFrom = Moves::getFrom(move);
         const Square squareTo = Moves::getTo(move);
         const Piece moved = Moves::getMoved(move);
@@ -148,23 +177,58 @@ namespace
 
         // move the piece back
         Position::pieces[squareFrom] = moved;
-        Position::pieces[squareTo] = NULL_PIECE;
         Position::bitboards[moved] |= from;
-        Position::bitboards[moved] &= ~to;
+        Position::hash ^= Zobrist::PIECES[squareFrom][moved];
 
         // if we are un-promoting
         if (promoted != NULL_PIECE)
         {
             // remove the promoted piece
+            Position::pieces[squareTo] = NULL_PIECE;
             Position::bitboards[promoted] ^= to;
-            // replace a captured piece
-            Position::pieces[squareTo] = captured;
-            Position::bitboards[captured] |= to;
-
-            Position::materialScore += Eval::PIECE_SCORES[captured];
+            Position::hash ^= Zobrist::PIECES[squareTo][promoted];
             Position::materialScore -= Eval::PIECE_SCORES[promoted];
         }
-            // if we are undoing kingside castling
+        else
+        {
+            // erase the piece we moved
+            Position::pieces[squareTo] = NULL_PIECE;
+            Position::bitboards[moved] ^= to;
+            Position::hash ^= Zobrist::PIECES[squareTo][moved];
+        }
+
+        // if we are un-enabling en passant
+        if (move & Moves::DOUBLE_PAWN_PUSH)
+        {
+            Position::hash ^= Zobrist::EN_PASSANT[Position::irreversibles.enPassantFile];
+        }
+        // if we are re-enabling en passant
+        else if (Position::irreversibles.enPassantFile != state.enPassantFile)
+        {
+            Position::hash ^= Zobrist::EN_PASSANT[state.enPassantFile];
+        }
+
+        // if we are un-capturing en passant
+        if (move & Moves::EN_PASSANT)
+        {
+            // replace the captured pawn
+            const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
+            const U64 enPassantCapture = isWhite ? south(to) : north(to);
+            Position::pieces[enPassantCaptureSquare] = captured;
+            Position::bitboards[captured] |= enPassantCapture;
+            Position::hash ^= Zobrist::PIECES[enPassantCaptureSquare][captured];
+            Position::materialScore += Eval::PIECE_SCORES[captured];
+        }
+        // if we are un-capturing normally
+        else if (captured != NULL_PIECE)
+        {
+            // replace the captured piece
+            Position::pieces[squareTo] = captured;
+            Position::bitboards[captured] |= to;
+            Position::hash ^= Zobrist::PIECES[squareTo][captured];
+            Position::materialScore += Eval::PIECE_SCORES[captured];
+        }
+        // if we are undoing kingside castling
         else if (move & Moves::SHORT_CASTLE)
         {
             static constexpr Piece eastRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
@@ -173,10 +237,12 @@ namespace
             // move the castled rook east back to where it came from
             Position::pieces[rookFrom] = NULL_PIECE;
             Position::bitboards[eastRook] ^= getBoard(rookFrom);
+            Position::hash ^= Zobrist::PIECES[rookFrom][eastRook];
             Position::pieces[rookTo] = eastRook;
             Position::bitboards[eastRook] |= getBoard(rookTo);
+            Position::hash ^= Zobrist::PIECES[rookTo][eastRook];
         }
-            // if we are undoing queenside castling
+        // if we are undoing queenside castling
         else if (move & Moves::LONG_CASTLE)
         {
             static constexpr Piece westRook = isWhite ? WHITE_ROOK : BLACK_ROOK;
@@ -185,25 +251,16 @@ namespace
             // move the castled rook east back to where it came from
             Position::pieces[rookFrom] = NULL_PIECE;
             Position::bitboards[westRook] ^= getBoard(rookFrom);
+            Position::hash ^= Zobrist::PIECES[rookFrom][westRook];
             Position::pieces[rookTo] = westRook;
             Position::bitboards[westRook] |= getBoard(rookTo);
-        }
-            // if we are un-capturing en passant
-        else if (move & Moves::EN_PASSANT)
-        {
-            const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
-            const U64 enPassantCapture = isWhite ? south(to) : north(to);
-            Position::pieces[enPassantCaptureSquare] = captured;
-            Position::bitboards[captured] |= enPassantCapture;
-            Position::materialScore += Eval::PIECE_SCORES[isWhite ? BLACK_PAWN : WHITE_PAWN];
-        }
-        else if (captured != NULL_PIECE)
-        {
-            Position::pieces[squareTo] = captured;
-            Position::bitboards[captured] |= to;
-            Position::materialScore += Eval::PIECE_SCORES[captured];
+            Position::hash ^= Zobrist::PIECES[rookTo][westRook];
         }
 
+        Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];
+        Position::hash ^= Zobrist::WHITE_TO_MOVE;
+        Position::isWhiteToMove = !Position::isWhiteToMove;
+        Position::irreversibles = state;
         Position::updateBitboards();
     }
 
@@ -211,8 +268,6 @@ namespace
 
 bool Position::init(const std::string& fen)
 {
-    Position::rights.currentPly++;
-
     clear();
 
     std::vector<std::string> fenParts;
@@ -231,8 +286,8 @@ bool Position::init(const std::string& fen)
     const std::string playerToMove = fenParts[1];
     const std::string castlingRights = fenParts[2];
     const std::string enPassantSquare = fenParts[3];
-    const std::string halfMoves = fenParts[4];
-    const std::string fullMoves = fenParts[5];
+    const std::string halfMoveClock = fenParts[4];
+    const std::string fullMoveCounter = fenParts[5];
 
     Square square = A8;
     for (const char letter : position)
@@ -242,8 +297,10 @@ bool Position::init(const std::string& fen)
         if (piece != NULL_PIECE)
         {
             pieces[square] = piece;
-            bitboards[piece] |= getBoard(square++);
+            bitboards[piece] |= getBoard(square);
             materialScore += Eval::PIECE_SCORES[piece];
+            hash ^= Zobrist::PIECES[square][piece];
+            square++;
         }
         else if (isdigit(letter))
         {
@@ -268,6 +325,11 @@ bool Position::init(const std::string& fen)
         clear();
         return false;
     }
+    isWhiteToMove = playerToMove == "w";
+    if (isWhiteToMove)
+    {
+        hash ^= Zobrist::WHITE_TO_MOVE;
+    }
 
     int enPassantFile = enPassantSquare == "-" ? -1 : Notation::charToFile(enPassantSquare[0]);
     if (enPassantFile < -1 || enPassantFile > 8)
@@ -275,25 +337,44 @@ bool Position::init(const std::string& fen)
         clear();
         return false;
     }
-
-    rights.enPassantFile = enPassantFile;
-    rights.isWhiteToMove = playerToMove == "w";
+    irreversibles.enPassantFile = enPassantFile;
+    if (enPassantFile > -1)
+    {
+        Position::hash ^= Zobrist::EN_PASSANT[enPassantFile];
+    }
 
     if (castlingRights.find('K') != std::string::npos)
     {
-        rights.castlingFlags |= WHITE_CASTLE_SHORT;
+        irreversibles.castlingFlags |= WHITE_CASTLE_SHORT;
     }
     if (castlingRights.find('Q') != std::string::npos)
     {
-        rights.castlingFlags |= WHITE_CASTLE_LONG;
+        irreversibles.castlingFlags |= WHITE_CASTLE_LONG;
     }
     if (castlingRights.find('k') != std::string::npos)
     {
-        rights.castlingFlags |= BLACK_CASTLE_SHORT;
+        irreversibles.castlingFlags |= BLACK_CASTLE_SHORT;
     }
     if (castlingRights.find('q') != std::string::npos)
     {
-        rights.castlingFlags |= BLACK_CASTLE_LONG;
+        irreversibles.castlingFlags |= BLACK_CASTLE_LONG;
+    }
+    hash ^= Zobrist::CASTLING[irreversibles.castlingFlags];
+
+    try
+    {
+        totalPlies = 2 * (std::stoi(fullMoveCounter) - 1);
+        irreversibles.reversiblePlies = std::stoi(halfMoveClock);
+        if (totalPlies < 0 || irreversibles.reversiblePlies < 0)
+        {
+            clear();
+            return false;
+        }
+    }
+    catch (const std::exception& exception)
+    {
+        clear();
+        return false;
     }
 
     return true;
@@ -304,7 +385,11 @@ inline void Position::clear()
     std::memset(bitboards, EMPTY_BOARD, sizeof(bitboards));
     std::memset(pieces, NULL_PIECE, sizeof(pieces));
     updateBitboards();
-    rights = {};
+    hash = 0;
+    materialScore = 0;
+    totalPlies = 0;
+    isWhiteToMove = true;
+    irreversibles = {};
 }
 
 inline void Position::updateBitboards()
@@ -332,7 +417,7 @@ inline void Position::updateBitboards()
 
 void Position::makeMove(const Move move)
 {
-    if (rights.isWhiteToMove)
+    if (isWhiteToMove)
     {
         doMove<true>(move);
     }
@@ -342,15 +427,15 @@ void Position::makeMove(const Move move)
     }
 }
 
-void Position::unMakeMove(const Move move, const Rights& previousRights)
+void Position::unMakeMove(const Move move, const Irreversibles& state)
 {
-    if (!rights.isWhiteToMove)
+    if (!isWhiteToMove)
     {
-        undoMove<true>(move, previousRights);
+        undoMove<true>(move, state);
     }
     else
     {
-        undoMove<false>(move, previousRights);
+        undoMove<false>(move, state);
     }
 }
 

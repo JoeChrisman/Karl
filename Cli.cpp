@@ -56,7 +56,7 @@ namespace
             }
             return;
         }
-        Position::Rights rightsCopy = Position::rights;
+        Position::Irreversibles state = Position::irreversibles;
         Gen::genMoves();
         Move moves[256];
         std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
@@ -95,7 +95,7 @@ namespace
                 perft(depth - 1, info, splitDepth);
             }
 
-            Position::unMakeMove(move, rightsCopy);
+            Position::unMakeMove(move, state);
         }
     }
 
@@ -134,6 +134,7 @@ namespace
                 std::cout << "~ Invalid FEN string found in file \"perftSuite.txt\"\n";
                 return;
             }
+            const Hash hashBefore = Position::hash;
 
             std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
             // the rest of the strings are depths and node counts
@@ -143,7 +144,14 @@ namespace
                 perft(depth, info);
                 totalNodes += info.totalNodes;
                 int nodes = std::stoi(testContents[depth]);
-                if (info.nodes == nodes)
+                if (Position::hash != hashBefore)
+                {
+                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed incorrect hash\n";
+                    std::cout << "\t~ Expected hash to be " << std::hex << "0x" << hashBefore;
+                    std::cout << ", but found " << "0x" << Position::hash << std::dec << "\n";
+                    failures++;
+                }
+                else if (info.nodes == nodes)
                 {
                     std::cout << "~ [PASS] Perft unit test at depth " << depth << " passed with " << info.nodes << " nodes\n";
                     passes++;
@@ -215,6 +223,7 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
             std::cout << "\t~ \"show\" to show the current position\n";
+            std::cout << "\t~ \"info\" to show detailed information about the current position\n";
             std::cout << "\t~ \"go\" to start engine analysis\n";
             std::cout << "\t~ \"who\" to show who's turn it is\n";
             std::cout << "\t~ \"flip\" to flip the board\n";
@@ -264,6 +273,25 @@ ____  __.           ))   `\_) .__
             Position::print(isWhiteOnBottom);
             showReady();
         }
+        else if (command == "info")
+        {
+            const std::string sideToMove = Position::isWhiteToMove ? "white" : "black";
+            const int castlingFlags = Position::irreversibles.castlingFlags;
+            const int enPassant = Position::irreversibles.enPassantFile;
+            const std::string enPassantFile = enPassant == -1 ? "NULL" : Notation::fileToStr(enPassant);
+
+            std::cout << "~ Position info:\n";
+            std::cout << "\t~ =====================================\n";
+            std::cout << "\t~ Zobrist hash     | 0x" << std::hex << Position::hash << std::dec << "\n";
+            std::cout << "\t~ Side to move     | " << sideToMove << "\n";
+            std::cout << "\t~ En passant file  | " << enPassantFile << "\n";
+            std::cout << "\t~ Castling flags   | 0x" << std::hex << castlingFlags << std::dec << "\n";
+            std::cout << "\t~ Material score   | " << Position::materialScore << "\n";
+            std::cout << "\t~ Total plies      | " << Position::totalPlies << "\n";
+            std::cout << "\t~ Reversible plies | " << Position::irreversibles.reversiblePlies << "\n";
+            std::cout << "\t~ =====================================\n";
+            showReady();
+        }
         else if (command == "go")
         {
             Move best = Search::getBestMove();
@@ -272,7 +300,7 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "who")
         {
-            if (Position::rights.isWhiteToMove)
+            if (Position::isWhiteToMove)
             {
                 std::cout << "~ It is white to move\n";
             }
@@ -336,8 +364,8 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "pass")
         {
-            Position::rights.isWhiteToMove = !Position::rights.isWhiteToMove;
-            std::cout << "~ Successfully gave " << (Position::rights.isWhiteToMove ? "white" : "black") << " the move\n";
+            Position::isWhiteToMove = !Position::isWhiteToMove;
+            std::cout << "~ Successfully gave " << (Position::isWhiteToMove ? "white" : "black") << " the move\n";
             showReady();
         }
         else if (command.substr(0, 5) == "perft")
@@ -403,6 +431,7 @@ ____  __.           ))   `\_) .__
             }
             else
             {
+                Hash hashBefore = Position::hash;
                 // run perft in normal mode
                 for (int depth = minDepth; depth <= maxDepth; depth++)
                 {

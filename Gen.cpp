@@ -270,14 +270,14 @@ namespace
                     Moves::createMove(from, to, pieceMoving, Position::pieces[to]);
         }
 
-        const int enPassantFile = Position::rights.enPassantFile;
+        const int enPassantFile = Position::irreversibles.enPassantFile;
         if (enPassantFile > -1)
         {
             static constexpr U64 eastCaptureMask = ~FILE_MASKS[A_FILE];
             static constexpr U64 westCaptureMask = ~FILE_MASKS[H_FILE];
             static constexpr Piece pawnCapturing = isWhite ? BLACK_PAWN : WHITE_PAWN;
 
-            const U64 enPassantSquare = FILE_MASKS[Position::rights.enPassantFile] &
+            const U64 enPassantSquare = FILE_MASKS[Position::irreversibles.enPassantFile] &
                                         RANK_MASKS[isWhite ? SIXTH_RANK : THIRD_RANK];
             const U64 shiftedResolvers = isWhite ? north(Gen::resolverSquares) : south(Gen::resolverSquares);
             const U64 enPassantMask = enPassantSquare & shiftedResolvers;
@@ -510,7 +510,7 @@ namespace
             static constexpr int castleShort = isWhite ? Position::WHITE_CASTLE_SHORT : Position::BLACK_CASTLE_SHORT;
             static constexpr int castleLong = isWhite ? Position::WHITE_CASTLE_LONG : Position::BLACK_CASTLE_LONG;
 
-            if (Position::rights.castlingFlags & castleShort)
+            if (Position::irreversibles.castlingFlags & castleShort)
             {
                 static constexpr U64 shortSafeSquares = isWhite ? 0x7000000000000000 : 0x70;
                 static constexpr U64 shortEmptySquares = isWhite ? 0x6000000000000000 : 0x60;
@@ -522,7 +522,7 @@ namespace
                             Moves::SHORT_CASTLE | Moves::createMove(from, to, pieceMoving, NULL_PIECE);
                 }
             }
-            if (Position::rights.castlingFlags & castleLong)
+            if (Position::irreversibles.castlingFlags & castleLong)
             {
                 static constexpr U64 longSafeSquares = isWhite ? 0x1c00000000000000 : 0x1c;
                 static constexpr U64 longEmptySquares = isWhite ? 0xe00000000000000 : 0xe;
@@ -707,7 +707,7 @@ namespace
 
 void Gen::genMoves()
 {
-    if (Position::rights.isWhiteToMove)
+    if (Position::isWhiteToMove)
     {
         genLegalMoves<true, true>();
     }
@@ -728,7 +728,7 @@ void Gen::init()
 
 void Gen::genCaptures()
 {
-    if (Position::rights.isWhiteToMove)
+    if (Position::isWhiteToMove)
     {
         genLegalMoves<true, false>();
     }
