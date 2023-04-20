@@ -247,13 +247,6 @@ namespace
 
 void Magics::init()
 {
-    std::cout << "\033[;35m~ Loading... \033[0m";
-    std::cout << "\033[7;97m  0%\033[0m";
-    for (int i = 0; i < 32; i++)
-    {
-        std::cout << "\033[45;45m \033[0m";
-    }
-    std::cout << std::flush;
     for (Square square = A8; square <= H1; square++)
     {
         cardinalMagics[square].blockers = getRookBlockers(square);
@@ -265,19 +258,5 @@ void Magics::init()
 
         std::string percentComplete = std::to_string(100 * square / 63);
         std::string indentation = std::string(3 - percentComplete.length(), ' ');
-
-        std::cout << std::flush;
-        std::cout << "\r\033[;35m~ Loading... \033[0m";
-        std::cout << "\033[7;97m" << indentation << percentComplete << "%\033[0m";
-        for (int i = 0; i < square / 2; i++)
-        {
-            std::cout << "\033[7;97m \033[0m";
-        }
-        for (int i = 0; i <= 31 - square / 2; i++)
-        {
-            std::cout << "\033[45;45m \033[0m";
-        }
-        std::cout << std::flush;
     }
-    std::cout << "\r" << std::string(100, ' ');
 }
