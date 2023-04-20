@@ -21,13 +21,12 @@ namespace
         return repetitions >= 3;
     }
 
-    Score negamax(Color color, int depth)
+    Score negamax(Color color, int depth, int alpha, int beta)
     {
         if (isRepetition() || Position::irreversibles.reversiblePlies >= 50)
         {
             return Eval::CONTEMPT;
         }
-
         if (!depth)
         {
             return Eval::evaluate(Position::materialScore) * color;
@@ -54,12 +53,20 @@ namespace
         {
             Move move = moves[i];
             Position::makeMove(move);
-            Score score = -negamax((Color)-color, depth - 1);
+            Score score = -negamax((Color)-color, depth - 1, -beta, -alpha);
+            Position::unMakeMove(move, state);
             if (score > best)
             {
                 best = score;
             }
-            Position::unMakeMove(move, state);
+            if (best > alpha)
+            {
+                alpha = best;
+            }
+            if (alpha >= beta)
+            {
+                break;
+            }
         }
 
         return best;
@@ -83,8 +90,8 @@ Move Search::getBestMove()
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 4);
-        std::cout << Notation::moveToStr(move) << ": " << score << "\n";
+        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 4, Eval::MIN_SCORE, Eval::MAX_SCORE);
+        //std::cout << Notation::moveToStr(move) << ": " << score << "\n";
         if (score > bestScore)
         {
             equals.clear();
