@@ -10,9 +10,11 @@
 
 namespace Search
 {
+    void init();
+    Move getBestMove();
+
     inline constexpr int MAX_DEPTH = 100;
 
-    Move getBestMove();
 };
 
 #endif //KARL_SEARCH_H

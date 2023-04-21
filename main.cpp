@@ -7,6 +7,7 @@ int main()
     srand(time(nullptr));
     Magics::init();
     Gen::init();
+    Search::init();
     return Cli::runKarlCli();
 }
 

@@ -7,7 +7,47 @@
 
 namespace
 {
-    bool isRepetition()
+    Score captureScores[13][13];
+
+    void initCaptureScores()
+    {
+        static constexpr Score attackerScores[13] = {
+                0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
+        };
+        static constexpr Score victimScores[13] = {
+                0, 100, 200, 300, 400, 500, 0, 100, 200, 300, 400, 500, 0
+        };
+
+        for (Piece attacker = NULL_PIECE; attacker <= BLACK_KING; attacker++)
+        {
+            for (Piece victim = NULL_PIECE; victim <= BLACK_KING; victim++)
+            {
+                captureScores[attacker][victim] = victimScores[victim] - attackerScores[attacker];
+            }
+        }
+    }
+
+    inline void orderMove(Move moves[256], int numMoves, int moveNum)
+    {
+        Score bestScore = Eval::MIN_SCORE;
+        int bestMoveIndex = -1;
+        for (int i = moveNum; i < numMoves; i++)
+        {
+            Move move = moves[i];
+            Score score = captureScores[Moves::getMoved(move)][Moves::getCaptured(move)];
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMoveIndex = i;
+            }
+        }
+
+        Move bestMove = moves[bestMoveIndex];
+        moves[bestMoveIndex] = moves[moveNum];
+        moves[moveNum] = bestMove;
+    }
+
+    inline bool isRepetition()
     {
         int repetitions = 1;
         int index = Position::totalPlies - Position::irreversibles.reversiblePlies;
@@ -49,9 +89,10 @@ namespace
         Move moves[256];
         std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
         const Position::Irreversibles state = Position::irreversibles;
-        for (int i = 0; i < numMoves; i++)
+        for (int moveNum = 0; moveNum < numMoves; moveNum++)
         {
-            Move move = moves[i];
+            orderMove(moves, numMoves, moveNum);
+            Move move = moves[moveNum];
             Position::makeMove(move);
             Score score = -negamax((Color)-color, depth - 1, -beta, -alpha);
             Position::unMakeMove(move, state);
@@ -73,12 +114,15 @@ namespace
     }
 }
 
+void Search::init()
+{
+    initCaptureScores();
+}
+
 Move Search::getBestMove()
 {
     Score bestScore = Eval::MIN_SCORE;
-
-    // moves equal to the best move
-    std::vector<Move> equals;
+    std::vector<Move> bestMoves;
 
     Gen::genMoves();
     const int numMoves = Gen::numMoves;
@@ -90,21 +134,22 @@ Move Search::getBestMove()
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 4, Eval::MIN_SCORE, Eval::MAX_SCORE);
+        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 6, Eval::MIN_SCORE, Eval::MAX_SCORE);
         //std::cout << Notation::moveToStr(move) << ": " << score << "\n";
         if (score > bestScore)
         {
-            equals.clear();
-            equals.push_back(move);
+            bestMoves.clear();
+            bestMoves.push_back(move);
             bestScore = score;
         }
         else if (score == bestScore)
         {
-            equals.push_back(move);
+            bestMoves.push_back(move);
         }
         Position::unMakeMove(move, state);
     }
     // add some variance during the game because when carl goes against other
     // engines the same game often happens over and over again
-    return equals[rand() % equals.size()];
+    return bestMoves[rand() % bestMoves.size()];
 }
+

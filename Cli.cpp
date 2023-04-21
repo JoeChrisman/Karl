@@ -14,7 +14,7 @@ namespace
 
     void showReady()
     {
-        std::cout << "\033[;35m> \033[0m" << std::flush;
+        std::cout << "> ";
     }
 
     struct PerftInfo
