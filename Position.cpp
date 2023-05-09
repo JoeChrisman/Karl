@@ -20,10 +20,14 @@ U64 Position::blackOrEmpty = EMPTY_BOARD;
 
 Hash Position::history[MAX_MOVES] = {0};
 
+Score Position::materialScore = 0;
+Score Position::midgamePlacementScore = 0;
+Score Position::endgamePlacementScore = 0;
+
+int Position::totalPlies = 0;
 bool Position::isWhiteToMove = true;
 Position::Irreversibles Position::irreversibles = {};
-Score Position::materialScore = 0;
-int Position::totalPlies = 0;
+
 
 namespace
 {
@@ -62,6 +66,8 @@ namespace
         Position::pieces[squareFrom] = NULL_PIECE;
         Position::hash ^= Zobrist::PIECES[squareFrom][moving];
 
+        Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[moving][squareFrom];
+
         // remove castling rights
         Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareTo];
         Position::irreversibles.castlingFlags &= CASTLING_FLAGS[squareFrom];
@@ -76,13 +82,13 @@ namespace
         // if we promoted
         if (promoted != NULL_PIECE)
         {
-
             // put the promoted piece on the target square
             Position::pieces[squareTo] = promoted;
             Position::bitboards[promoted] |= to;
             Position::hash ^= Zobrist::PIECES[squareTo][promoted];
 
             Position::materialScore += Eval::PIECE_SCORES[promoted];
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[promoted][squareTo];
         }
         // if we did not promote
         else
@@ -91,6 +97,8 @@ namespace
             Position::pieces[squareTo] = moving;
             Position::bitboards[moving] |= to;
             Position::hash ^= Zobrist::PIECES[squareTo][moving];
+
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[moving][squareTo];
         }
 
         // if we pushed a pawn two squares
@@ -124,6 +132,8 @@ namespace
                 Position::bitboards[eastRook] |= getBoard(rookTo);
                 Position::hash ^= Zobrist::PIECES[rookTo][eastRook];
 
+                Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[eastRook][rookFrom];
+                Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[eastRook][rookTo];
             }
             // if we castled long
             else if (move & Moves::LONG_CASTLE)
@@ -138,6 +148,9 @@ namespace
                 Position::pieces[rookTo] = westRook;
                 Position::bitboards[westRook] |= getBoard(rookTo);
                 Position::hash ^= Zobrist::PIECES[rookTo][westRook];
+
+                Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[westRook][rookFrom];
+                Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[westRook][rookTo];
             }
             // if we captured en passant
             else if (move & Moves::EN_PASSANT)
@@ -145,21 +158,25 @@ namespace
                 // perform en passant capture
                 const Square enPassantCaptureSquare = isWhite ? south(squareTo) : north(squareTo);
                 const U64 enPassantCapture = isWhite ? south(to) : north(to);
-                Position::materialScore -= Eval::PIECE_SCORES[captured];
                 Position::bitboards[captured] ^= enPassantCapture;
                 Position::pieces[enPassantCaptureSquare] = NULL_PIECE;
                 Position::hash ^= Zobrist::PIECES[enPassantCaptureSquare][captured];
+
+                Position::materialScore -= Eval::PIECE_SCORES[captured];
+                Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[captured][enPassantCaptureSquare];
             }
             // if we captured normally
             else if (captured != NULL_PIECE)
             {
-                Position::materialScore -= Eval::PIECE_SCORES[captured];
                 // remove the captured piece
                 Position::bitboards[captured] ^= to;
                 Position::hash ^= Zobrist::PIECES[squareTo][captured];
 
                 // captures are irreversible moves
                 Position::irreversibles.reversiblePlies = 0;
+
+                Position::materialScore -= Eval::PIECE_SCORES[captured];
+                Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[captured][squareTo];
             }
         }
 
@@ -182,10 +199,11 @@ namespace
         const U64 from = getBoard(squareFrom);
         const U64 to = getBoard(squareTo);
 
-        // move the piece back
+        // copy the piece back to where it came from
         Position::pieces[squareFrom] = moved;
         Position::bitboards[moved] |= from;
         Position::hash ^= Zobrist::PIECES[squareFrom][moved];
+        Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[moved][squareFrom];
 
         // if we are un-promoting
         if (promoted != NULL_PIECE)
@@ -195,6 +213,7 @@ namespace
             Position::bitboards[promoted] ^= to;
             Position::hash ^= Zobrist::PIECES[squareTo][promoted];
             Position::materialScore -= Eval::PIECE_SCORES[promoted];
+            Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[promoted][squareTo];
         }
         else
         {
@@ -202,6 +221,7 @@ namespace
             Position::pieces[squareTo] = NULL_PIECE;
             Position::bitboards[moved] ^= to;
             Position::hash ^= Zobrist::PIECES[squareTo][moved];
+            Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[moved][squareTo];
         }
 
         // if we are un-enabling en passant
@@ -225,6 +245,7 @@ namespace
             Position::bitboards[captured] |= enPassantCapture;
             Position::hash ^= Zobrist::PIECES[enPassantCaptureSquare][captured];
             Position::materialScore += Eval::PIECE_SCORES[captured];
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[captured][enPassantCaptureSquare];
         }
         // if we are un-capturing normally
         else if (captured != NULL_PIECE)
@@ -234,6 +255,7 @@ namespace
             Position::bitboards[captured] |= to;
             Position::hash ^= Zobrist::PIECES[squareTo][captured];
             Position::materialScore += Eval::PIECE_SCORES[captured];
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[captured][squareTo];
         }
         // if we are undoing kingside castling
         else if (move & Moves::SHORT_CASTLE)
@@ -248,6 +270,9 @@ namespace
             Position::pieces[rookTo] = eastRook;
             Position::bitboards[eastRook] |= getBoard(rookTo);
             Position::hash ^= Zobrist::PIECES[rookTo][eastRook];
+
+            Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[eastRook][rookFrom];
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[eastRook][rookTo];
         }
         // if we are undoing queenside castling
         else if (move & Moves::LONG_CASTLE)
@@ -262,6 +287,9 @@ namespace
             Position::pieces[rookTo] = westRook;
             Position::bitboards[westRook] |= getBoard(rookTo);
             Position::hash ^= Zobrist::PIECES[rookTo][westRook];
+
+            Position::midgamePlacementScore -= Eval::MIDGAME_PLACEMENT_SCORES[westRook][rookFrom];
+            Position::midgamePlacementScore += Eval::MIDGAME_PLACEMENT_SCORES[westRook][rookTo];
         }
 
         Position::hash ^= Zobrist::CASTLING[Position::irreversibles.castlingFlags];

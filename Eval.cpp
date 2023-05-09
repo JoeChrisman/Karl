@@ -4,7 +4,7 @@
 
 #include "Eval.h"
 
-Score Eval::evaluate(Score material)
+Score Eval::evaluate(const Score material, const Score midgamePlacement)
 {
-    return material;
+    return material + midgamePlacement;
 }
