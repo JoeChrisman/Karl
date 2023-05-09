@@ -20,7 +20,7 @@ enum Color
     BLACK = -1
 };
 
-const std::string VERSION = "0.3 <beta>";
+const std::string VERSION = "0.4 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 constexpr U64 EMPTY_BOARD = 0;
 constexpr U64 FULL_BOARD = ~0;
@@ -234,6 +234,12 @@ template<int distance = 1>
 Square northWest(const Square square)
 {
     return square - 9 * distance;
+}
+
+inline long getEpochMilis()
+{
+    static const auto start_time = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
 }
 
 // some debug code will live here temporarily

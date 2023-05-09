@@ -49,7 +49,7 @@ char Notation::pieceToChar(const Piece piece)
 {
     switch (piece)
     {
-        case WHITE_PAWN: return 'W';
+        case WHITE_PAWN: return 'P';
         case WHITE_KNIGHT: return 'N';
         case WHITE_BISHOP: return 'B';
         case WHITE_ROOK: return 'R';

@@ -11,7 +11,16 @@
 namespace Search
 {
     void init();
-    Move getBestMove();
+    Move searchByDepth(const int depth);
+    Move searchByTime(const int millis);
+    Move searchByTimeControl(
+            const int whiteRemaining,
+            const int blackRemaining,
+            const int whiteIncrement,
+            const int blackIncrement);
+
+    extern long endTime;
+    extern bool isOutOfTime;
 
     inline constexpr int MAX_DEPTH = 100;
 

@@ -28,6 +28,8 @@ namespace Position
     extern U64 blackOrEmpty;
 
     extern Score materialScore;
+    extern Score midgamePlacementScore;
+    extern Score endgamePlacementScore;
 
     extern bool isWhiteToMove;
     extern int totalPlies;

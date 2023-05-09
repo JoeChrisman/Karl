@@ -135,6 +135,8 @@ namespace
                 return;
             }
             const Hash hashBefore = Position::hash;
+            const Score materialScoreBefore = Position::materialScore;
+            const Score midgamePlacementScoreBefore = Position::midgamePlacementScore;
 
             std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
             // the rest of the strings are depths and node counts
@@ -146,9 +148,21 @@ namespace
                 int nodes = std::stoi(testContents[depth]);
                 if (Position::hash != hashBefore)
                 {
-                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed incorrect hash\n";
+                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect hash\n";
                     std::cout << "\t~ Expected hash to be " << std::hex << "0x" << hashBefore;
                     std::cout << ", but found " << "0x" << Position::hash << std::dec << "\n";
+                    failures++;
+                }
+                else if (Position::materialScore != materialScoreBefore)
+                {
+                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect material score\n";
+                    std::cout << "\t~ Expected score to be " << materialScoreBefore << ", but found " << Position::materialScore << "\n";
+                    failures++;
+                }
+                else if (Position::midgamePlacementScore != midgamePlacementScoreBefore)
+                {
+                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect midgame placement score\n";
+                    std::cout << "\t~ Expected score to be " << midgamePlacementScoreBefore << ", but found " << Position::midgamePlacementScore << "\n";
                     failures++;
                 }
                 else if (info.nodes == nodes)
@@ -224,7 +238,9 @@ ____  __.           ))   `\_) .__
             std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
             std::cout << "\t~ \"show\" to show the current position\n";
             std::cout << "\t~ \"info\" to show detailed information about the current position\n";
-            std::cout << "\t~ \"go\" to start engine analysis\n";
+            std::cout << "\t~ \"search {time} {depth} <amount>\" to start engine analysis\n";
+            std::cout << "\t\t~ \"If the {time} flag is present, <amount> is the number of milliseconds to search for\n";
+            std::cout << "\t\t~ \"If the {depth} flag is present, <amount> is the number of plies to search\n";
             std::cout << "\t~ \"who\" to show who's turn it is\n";
             std::cout << "\t~ \"flip\" to flip the board\n";
             std::cout << "\t~ \"pass\" to switch turns without making a move\n";
@@ -292,10 +308,42 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ =====================================\n";
             showReady();
         }
-        else if (command == "go")
+        else if (command.substr(0, 6) == "search")
         {
-            Move best = Search::getBestMove();
-            std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
+            if (command.substr(7, 4) == "time")
+            {
+                int time;
+                try
+                {
+                    time = std::stoi(command.substr(12, std::string::npos));
+                }
+                catch (const std::exception& exception)
+                {
+                    std::cout << "~ Unrecognized arguments\n";
+                    std::cout << "~ Run \"help\" for a list of commands\n";
+                    showReady();
+                    continue;
+                }
+                Move best = Search::searchByTime(time);
+                std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
+            }
+            else if (command.substr(7, 5) == "depth")
+            {
+                int depth;
+                try
+                {
+                    depth = std::stoi(command.substr(13, std::string::npos));
+                }
+                catch (const std::exception& exception)
+                {
+                    std::cout << "~ Unrecognized arguments\n";
+                    std::cout << "~ Run \"help\" for a list of commands\n";
+                    showReady();
+                    continue;
+                }
+                Move best = Search::searchByDepth(depth);
+                std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
+            }
             showReady();
         }
         else if (command == "who")
@@ -431,7 +479,6 @@ ____  __.           ))   `\_) .__
             }
             else
             {
-                Hash hashBefore = Position::hash;
                 // run perft in normal mode
                 for (int depth = minDepth; depth <= maxDepth; depth++)
                 {
@@ -531,7 +578,24 @@ int Cli::runKarlUci()
         }
         else if (command.substr(0, 2) == "go")
         {
-            std::cout << "bestmove " << Notation::moveToStr(Search::getBestMove()) << "\n";
+            std::stringstream timeControls(command.substr(2, std::string::npos));
+            int whiteRemaining;
+            int blackRemaining;
+            int whiteIncrement;
+            int blackIncrement;
+            std::string consume; // get rid of flags sent in the command
+            timeControls >> consume >> whiteRemaining;
+            timeControls >> consume >> blackRemaining;
+            timeControls >> consume >> whiteIncrement;
+            timeControls >> consume >> blackIncrement;
+
+            const Move best = Search::searchByTimeControl(
+                whiteRemaining,
+                blackRemaining,
+                whiteIncrement,
+                blackIncrement);
+
+            std::cout << "bestmove " << Notation::moveToStr(best) << "\n";
         }
     }
     return 0;

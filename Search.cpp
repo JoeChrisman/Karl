@@ -5,6 +5,9 @@
 #include "Search.h"
 #include "Notation.h"
 
+bool Search::isOutOfTime = false;
+long Search::endTime = 0;
+
 namespace
 {
     Score captureScores[13][13];
@@ -61,18 +64,73 @@ namespace
         return repetitions >= 3;
     }
 
-    Score negamax(Color color, int depth, int alpha, int beta)
+    struct SearchInfo
     {
+        U64 negaNodes;
+        U64 quietNodes;
+        U64 leafNodes;
+    };
+
+    SearchInfo info;
+
+    Score quiescence(Score alpha, Score beta, int color)
+    {
+        info.quietNodes++;
+        Score score = Eval::evaluate(Position::materialScore, Position::midgamePlacementScore) * color;
+        if (score >= beta)
+        {
+            return beta;
+        }
+        if (score > alpha)
+        {
+            alpha = score;
+        }
+
+        Gen::genCaptures();
+        Move captures[256];
+        std::memcpy(captures, Gen::moveList, sizeof(Gen::moveList));
+        const int numCaptures = Gen::numMoves;
+        const Position::Irreversibles state = Position::irreversibles;
+        for (int captureNum = 0; captureNum < numCaptures; captureNum++)
+        {
+            orderMove(captures, numCaptures, captureNum);
+            Move move = captures[captureNum];
+            Position::makeMove(move);
+            Score score = -quiescence(-beta, -alpha, -color);
+            Position::unMakeMove(move, state);
+            if (score >= beta)
+            {
+                return beta;
+            }
+            if (score > alpha)
+            {
+                alpha = score;
+            }
+        }
+        return alpha;
+    }
+
+    Score negamax(int color, int depth, Score alpha, Score beta)
+    {
+        if (getEpochMilis() > Search::endTime)
+        {
+            Search::isOutOfTime = true;
+            return 0;
+        }
+
         if (isRepetition() || Position::irreversibles.reversiblePlies >= 50)
         {
+            info.leafNodes++;
             return Eval::CONTEMPT;
         }
         if (!depth)
         {
-            return Eval::evaluate(Position::materialScore) * color;
+            info.leafNodes++;
+            //return quiescence(alpha, beta, color);
+            return Eval::evaluate(Position::materialScore, Position::midgamePlacementScore) * color;
         }
+        info.negaNodes++;
 
-        Score best = Eval::MIN_SCORE;
         Gen::genMoves();
         const int numMoves = Gen::numMoves;
         if (!numMoves)
@@ -94,23 +152,18 @@ namespace
             orderMove(moves, numMoves, moveNum);
             Move move = moves[moveNum];
             Position::makeMove(move);
-            Score score = -negamax((Color)-color, depth - 1, -beta, -alpha);
+            Score score = -negamax(-color, depth - 1, -beta, -alpha);
             Position::unMakeMove(move, state);
-            if (score > best)
+            if (score >= beta)
             {
-                best = score;
+                return beta;
             }
-            if (best > alpha)
+            if (score > alpha)
             {
-                alpha = best;
-            }
-            if (alpha >= beta)
-            {
-                break;
+                alpha = score;
             }
         }
-
-        return best;
+        return alpha;
     }
 }
 
@@ -119,8 +172,16 @@ void Search::init()
     initCaptureScores();
 }
 
-Move Search::getBestMove()
+Move Search::searchByDepth(const int depth)
 {
+    isOutOfTime = false;
+
+    timespec start = {};
+    timespec end = {};
+    clock_gettime(CLOCK_REALTIME, &start);
+
+    info = {};
+
     Score bestScore = Eval::MIN_SCORE;
     std::vector<Move> bestMoves;
 
@@ -134,8 +195,7 @@ Move Search::getBestMove()
         Move move = moves[i];
 
         Position::makeMove(move);
-        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, 6, Eval::MIN_SCORE, Eval::MAX_SCORE);
-        //std::cout << Notation::moveToStr(move) << ": " << score << "\n";
+        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, depth, Eval::MIN_SCORE, Eval::MAX_SCORE);
         if (score > bestScore)
         {
             bestMoves.clear();
@@ -147,9 +207,83 @@ Move Search::getBestMove()
             bestMoves.push_back(move);
         }
         Position::unMakeMove(move, state);
+        if (isOutOfTime)
+        {
+            return Moves::NULL_MOVE;
+        }
     }
     // add some variance during the game because when carl goes against other
     // engines the same game often happens over and over again
-    return bestMoves[rand() % bestMoves.size()];
+    Move bestMove = bestMoves[rand() % bestMoves.size()];
+
+    clock_gettime(CLOCK_REALTIME, &end);
+    /*
+    double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
+    double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
+    double msElapsed = endMillis - startMillis;
+
+    double branchingFactor = (double)(info.negaNodes + info.leafNodes - 1) / (double)info.negaNodes;
+
+    std::cout << "\t\t ~ Depth: " << depth << ", Time: " << msElapsed << "ms, Score: " << bestScore;
+    std::cout << ", Move: " << Notation::moveToStr(bestMove) << ", Negamax nodes: " << info.negaNodes;
+    std::cout << ", Quiet nodes: " << info.quietNodes << ", Leaf nodes: " << info.leafNodes;
+    std::cout << ", kN/S: " << (double)(info.negaNodes + info.quietNodes) / msElapsed;
+    std::cout << ", Average branching factor: " << branchingFactor << "\n";
+     */
+
+    return bestMove;
 }
+
+Move Search::searchByTime(const int millis)
+{
+    long startTime = getEpochMilis();
+    endTime = startTime + millis;
+
+    Gen::genMoves();
+    const int numMoves = Gen::numMoves;
+    if (numMoves == 1)
+    {
+        //std::cout << "\t~ Target elapsed: " << millis << ", Actual elapsed: " << getEpochMilis() - startTime << "\n";
+        return Gen::moveList[0];
+    }
+
+    int depth = 0;
+    Move best;
+    long lastSearchTime = 0;
+    while (++depth <= MAX_DEPTH)
+    {
+        // if we estimate the next search will take too much time
+        if (endTime < getEpochMilis() + 7 * lastSearchTime)
+        {
+            // give up and use the best move from the previous depth
+            break;
+        }
+
+        long searchStartTime = getEpochMilis();
+        const Move bestForDepth = searchByDepth(depth);
+        lastSearchTime = getEpochMilis() - searchStartTime;
+        // if we ran out of time while searching
+        if (bestForDepth == Moves::NULL_MOVE)
+        {
+            // give up and use the best move from the previous depth
+            break;
+        }
+        best = bestForDepth;
+    }
+
+    //std::cout << "\t~ Target elapsed: " << millis << ", Actual elapsed: " << getEpochMilis() - startTime << "\n";
+
+    return best;
+}
+
+Move Search::searchByTimeControl(
+        const int whiteRemaining,
+        const int blackRemaining,
+        const int whiteIncrement,
+        const int blackIncrement)
+{
+    int bestTime = (whiteRemaining + whiteIncrement * 29) / 30;
+    return searchByTime(bestTime);
+}
+
 
