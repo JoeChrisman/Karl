@@ -167,7 +167,7 @@ Score Search::negamax(int color, int depth, Score alpha, Score beta)
 }
 
 
-Move Search::searchByDepth(const int depth)
+ScoredMove Search::searchByDepth(const int depth)
 {
     isOutOfTime = false;
     branchNodes = 0;
@@ -205,7 +205,7 @@ Move Search::searchByDepth(const int depth)
         position.unMakeMove(move, state);
         if (isOutOfTime)
         {
-            return NULL_MOVE;
+            return ScoredMove{0, NULL_MOVE};
         }
     }
     // add some variance during the game because when carl goes against other
@@ -226,7 +226,7 @@ Move Search::searchByDepth(const int depth)
     std::cout << ", kN/S: " << (double)(branchNodes + quietNodes) / msElapsed;
     std::cout << ", ABF: " << branchingFactor << "\n";
 
-    return bestMove;
+    return ScoredMove{bestMove, bestScore};
 }
 
 Move Search::searchByTime(const int millis)
@@ -243,7 +243,7 @@ Move Search::searchByTime(const int millis)
     }
 
     int depth = 0;
-    Move best;
+    ScoredMove best = {};
     long lastSearchTime = 0;
     while (++depth <= MAX_DEPTH)
     {
@@ -255,20 +255,28 @@ Move Search::searchByTime(const int millis)
         }
 
         long searchStartTime = getEpochMillis();
-        const Move bestForDepth = searchByDepth(depth);
+        const ScoredMove bestForDepth = searchByDepth(depth);
+
         lastSearchTime = getEpochMillis() - searchStartTime;
         // if we ran out of time while searching
-        if (bestForDepth == NULL_MOVE)
+        if (bestForDepth.move == NULL_MOVE)
         {
             // give up and use the best move from the previous depth
             break;
         }
+        // if we found a mating line while searching
+        if (bestForDepth.score >= MAX_SCORE - MAX_DEPTH)
+        {
+            // play the move right away
+            return bestForDepth.move;
+        }
+
         best = bestForDepth;
     }
 
     std::cout << "info string Target elapsed: " << millis << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
 
-    return best;
+    return best.move;
 }
 
 Move Search::searchByTimeControl(
@@ -282,5 +290,3 @@ Move Search::searchByTimeControl(
 
     return searchByTime(bestTime);
 }
-
-

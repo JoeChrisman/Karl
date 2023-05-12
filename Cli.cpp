@@ -160,8 +160,8 @@ ____  __.           ))   `\_) .__
                     showReady();
                     continue;
                 }
-                Move best = search.searchByDepth(depth);
-                std::cout << "~ Best move: " << moveToStr(best) << "\n";
+                ScoredMove best = search.searchByDepth(depth);
+                std::cout << "~ Best move: " << moveToStr(best.move) << "\n";
             }
             showReady();
         }

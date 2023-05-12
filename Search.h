@@ -8,13 +8,19 @@
 #include "Eval.h"
 #include "Gen.h"
 
+struct ScoredMove
+{
+    Move move;
+    Score score;
+};
+
 class Search
 {
 public:
     Search(Position& position, Gen& generator);
     static constexpr int MAX_DEPTH = 100;
 
-    Move searchByDepth(const int depth);
+    ScoredMove searchByDepth(const int depth);
     Move searchByTime(const int millis);
     Move searchByTimeControl(
             const int whiteRemaining,
