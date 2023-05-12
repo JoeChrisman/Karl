@@ -126,8 +126,7 @@ Score Search::negamax(int color, int depth, Score alpha, Score beta)
     if (!depth)
     {
         leafNodes++;
-        //return quiescence(alpha, beta, color);
-        return evaluate(position.materialScore, position.midgamePlacementScore) * color;
+        return quiescence(alpha, beta, color);
     }
     branchNodes++;
 
