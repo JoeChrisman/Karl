@@ -7,22 +7,34 @@
 
 #include "Defs.h"
 
-namespace Magics
+struct MagicSquare
 {
-    void init();
+    U64 blockers;
+    U64 magic;
+};
 
-    struct MagicSquare
-    {
-        U64 blockers;
-        U64 magic;
-    };
+class Magics
+{
+public:
+    Magics();
 
-    extern MagicSquare ordinalMagics[64];
-    extern MagicSquare cardinalMagics[64];
+    MagicSquare ordinalMagics[64];
+    MagicSquare cardinalMagics[64];
 
-    extern U64 cardinalAttacks[64][4096];
-    extern U64 ordinalAttacks[64][512];
-}
+    U64 cardinalAttacks[64][4096];
+    U64 ordinalAttacks[64][512];
+
+private:
+    U64 random64();
+
+    U64 getMagicNumber(Square square, bool isCardinal);
+
+    U64 getBishopBlockers(Square from);
+    U64 getRookBlockers(Square from);
+    U64 getBishopAttacks(Square from, U64 blockers, bool captures);
+    U64 getRookAttacks(Square from, U64 blockers, bool captures);
+
+};
 
 
 #endif //KARL_MAGICS_H

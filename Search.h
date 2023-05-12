@@ -8,9 +8,12 @@
 #include "Eval.h"
 #include "Gen.h"
 
-namespace Search
+class Search
 {
-    void init();
+public:
+    Search(Position& position, Gen& generator);
+    static constexpr int MAX_DEPTH = 100;
+
     Move searchByDepth(const int depth);
     Move searchByTime(const int millis);
     Move searchByTimeControl(
@@ -18,12 +21,24 @@ namespace Search
             const int blackRemaining,
             const int whiteIncrement,
             const int blackIncrement);
+private:
+    Position& position;
+    Gen& generator;
 
-    extern long endTime;
-    extern bool isOutOfTime;
+    U64 branchNodes;
+    U64 quietNodes;
+    U64 leafNodes;
 
-    inline constexpr int MAX_DEPTH = 100;
+    long endTime;
+    bool isOutOfTime;
+    Score captureScores[13][13];
+    //Move principalVariation[(MAX_DEPTH * (MAX_DEPTH + 1)) / 2];
 
+    Score quiescence(Score alpha, const Score beta, const int color);
+    Score negamax(int color, int depth, Score alpha, Score beta);
+
+    inline void orderMove(Move moves[256], int numMoves, int moveNum);
+    inline bool isRepetition();
 };
 
 #endif //KARL_SEARCH_H

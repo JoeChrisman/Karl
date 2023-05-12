@@ -8,84 +8,83 @@
 #include "Defs.h"
 
 /*
- * A 32 bit move is encoded as such:
+ * A 32 bit move is encoded like this:
  *
- * 0->5: square from (0->63)
- * 6->11: square to (0->63)
- * 12->15: piece moved (0->11)
- * 16->19: piece captured (0->11)
- * 20->23: piece promoted (0->11)
- * 24: is double pawn push (0->1)
- * 25: is en passant capture (0->1)
- * 26: is short castle (0->1)
- * 27: is long castle (0->1)
+ * 0b
+ * 11111 square from
+ * 11111 square to
+ * 1111  piece moved
+ * 1111  piece captured
+ * 111   piece promoted
+ * 1     double pawn push flag
+ * 1     en passant capture flag
+ * 1     short castle flag
+ * 1     long castle flag
+ * 1111  unused
  */
 typedef int Move;
+static constexpr Move NULL_MOVE = 0;
 
-namespace Moves
+// numbers representing bits 24-27. they are move type flags
+static constexpr int DOUBLE_PAWN_PUSH = 0x01000000;
+static constexpr int EN_PASSANT       = 0x02000000;
+static constexpr int SHORT_CASTLE     = 0x04000000;
+static constexpr int LONG_CASTLE      = 0x08000000;
+
+namespace
 {
-    const Move NULL_MOVE = 0;
+    // numbers we can use to decode information from a move
+    constexpr int SQUARE_FROM      = 0x0000003f;
+    constexpr int SQUARE_TO        = 0x00000fc0;
+    constexpr int PIECE_MOVED      = 0x0000f000;
+    constexpr int PIECE_CAPTURED   = 0x000f0000;
+    constexpr int PIECE_PROMOTED   = 0x00f00000;
 
-    namespace
-    {
-        constexpr int SQUARE_FROM      = 0x0000003f;
-        constexpr int SQUARE_TO        = 0x00000fc0;
-        constexpr int PIECE_MOVED      = 0x0000f000;
-        constexpr int PIECE_CAPTURED   = 0x000f0000;
-        constexpr int PIECE_PROMOTED   = 0x00f00000;
+    // numbers we can use encode information into a move
+    constexpr int SQUARE_FROM_SHIFT     = 0;
+    constexpr int SQUARE_TO_SHIFT       = 6;
+    constexpr int PIECE_MOVED_SHIFT     = 12;
+    constexpr int PIECE_CAPTURED_SHIFT  = 16;
+    constexpr int PIECE_PROMOTED_SHIFT  = 20;
+}
 
-        constexpr int SQUARE_FROM_SHIFT     = 0;
-        constexpr int SQUARE_TO_SHIFT       = 6;
-        constexpr int PIECE_MOVED_SHIFT     = 12;
-        constexpr int PIECE_CAPTURED_SHIFT  = 16;
-        constexpr int PIECE_PROMOTED_SHIFT  = 20;
-    }
+inline Move createMove(
+        const Square from,
+        const Square to,
+        const Piece moved,
+        const Piece captured,
+        const Piece promoted = NULL_PIECE)
+{
+    return (from << SQUARE_FROM_SHIFT) |
+           (to << SQUARE_TO_SHIFT) |
+           (moved << PIECE_MOVED_SHIFT) |
+           (captured << PIECE_CAPTURED_SHIFT) |
+           (promoted << PIECE_PROMOTED_SHIFT);
+}
 
-    // flags
-    extern const int DOUBLE_PAWN_PUSH;
-    extern const int EN_PASSANT;
-    extern const int SHORT_CASTLE;
-    extern const int LONG_CASTLE;
+inline Square getFrom(const Move move)
+{
+    return (move & SQUARE_FROM) >> SQUARE_FROM_SHIFT;
+}
 
-    inline Move createMove(
-            const Square from,
-            const Square to,
-            const Piece moved,
-            const Piece captured,
-            const Piece promoted = NULL_PIECE)
-    {
-        return (from << SQUARE_FROM_SHIFT) |
-               (to << SQUARE_TO_SHIFT) |
-               (moved << PIECE_MOVED_SHIFT) |
-               (captured << PIECE_CAPTURED_SHIFT) |
-               (promoted << PIECE_PROMOTED_SHIFT);
-    }
+inline Square getTo(const Move move)
+{
+    return (move & SQUARE_TO) >> SQUARE_TO_SHIFT;
+}
 
-    inline Square getFrom(const Move move)
-    {
-        return (move & SQUARE_FROM) >> SQUARE_FROM_SHIFT;
-    }
+inline Piece getMoved(const Move move)
+{
+    return (move & PIECE_MOVED) >> PIECE_MOVED_SHIFT;
+}
 
-    inline Square getTo(const Move move)
-    {
-        return (move & SQUARE_TO) >> SQUARE_TO_SHIFT;
-    }
+inline Piece getCaptured(const Move move)
+{
+    return (move & PIECE_CAPTURED) >> PIECE_CAPTURED_SHIFT;
+}
 
-    inline Piece getMoved(const Move move)
-    {
-        return (move & PIECE_MOVED) >> PIECE_MOVED_SHIFT;
-    }
-
-    inline Piece getCaptured(const Move move)
-    {
-        return (move & PIECE_CAPTURED) >> PIECE_CAPTURED_SHIFT;
-    }
-
-    inline Piece getPromoted(const Move move)
-    {
-        return (move & PIECE_PROMOTED) >> PIECE_PROMOTED_SHIFT;
-    }
-};
-
+inline Piece getPromoted(const Move move)
+{
+    return (move & PIECE_PROMOTED) >> PIECE_PROMOTED_SHIFT;
+}
 
 #endif //KARL_MOVES_H

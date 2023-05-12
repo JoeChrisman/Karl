@@ -9,55 +9,76 @@
 #include "Moves.h"
 #include "Zobrist.h"
 
-namespace Position
+inline constexpr int WHITE_CASTLE_SHORT = 0x1;
+inline constexpr int WHITE_CASTLE_LONG = 0x2;
+inline constexpr int BLACK_CASTLE_SHORT = 0x4;
+inline constexpr int BLACK_CASTLE_LONG = 0x8;
+
+inline constexpr int WHITE_CASTLE = WHITE_CASTLE_LONG | WHITE_CASTLE_SHORT;
+inline constexpr int BLACK_CASTLE = BLACK_CASTLE_LONG | BLACK_CASTLE_SHORT;
+
+inline constexpr int CASTLING_FLAGS[64] = {
+        ~BLACK_CASTLE_LONG, 15, 15, 15, ~BLACK_CASTLE,  15, 15, ~BLACK_CASTLE_SHORT,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        15, 15, 15, 15,            15,  15, 15,                  15,
+        ~WHITE_CASTLE_LONG, 15, 15, 15, ~WHITE_CASTLE,  15, 15, ~WHITE_CASTLE_SHORT
+};
+
+class Position
 {
-    bool init(const std::string& fen);
-    void clear();
+public:
+    Position(const Zobrist& zobrist);
+    bool loadFen(const std::string& fen);
 
-    extern Hash hash;
-
-    extern U64 bitboards[13];
-    extern Piece pieces[64];
-
-    inline void updateBitboards();
-    extern U64 emptySquares;
-    extern U64 occupiedSquares;
-    extern U64 whitePieces;
-    extern U64 blackPieces;
-    extern U64 whiteOrEmpty;
-    extern U64 blackOrEmpty;
-
-    extern Score materialScore;
-    extern Score midgamePlacementScore;
-    extern Score endgamePlacementScore;
-
-    extern bool isWhiteToMove;
-    extern int totalPlies;
-
-    extern struct Irreversibles
+    struct Irreversibles
     {
         int castlingFlags;
         int enPassantFile;
         int reversiblePlies;
-    } irreversibles;
+    };
 
-    extern Hash history[MAX_MOVES];
+    Hash hash;
+    Hash history[MAX_MOVES];
+
+    U64 bitboards[13];
+    Piece pieces[64];
+
+    U64 emptySquares;
+    U64 occupiedSquares;
+    U64 whitePieces;
+    U64 blackPieces;
+    U64 whiteOrEmpty;
+    U64 blackOrEmpty;
+
+    Score materialScore;
+    Score midgamePlacementScore;
+    Score endgamePlacementScore;
+
+    int totalPlies;
+    bool isWhiteToMove;
+    Irreversibles irreversibles{};
+
+    void print(const bool isWhiteOnBottom);
 
     void makeMove(const Move move);
     void unMakeMove(const Move move, const Irreversibles& state);
 
-    template<bool isWhite>
-    void makeMove(const Move move);
+    void updateBitboards();
+private:
+    const Zobrist& zobrist;
 
     template<bool isWhite>
-    void unMakeMove(const Move move, const Irreversibles& state);
+    void doMove(const Move move);
 
-    inline constexpr int WHITE_CASTLE_SHORT = 0x1;
-    inline constexpr int WHITE_CASTLE_LONG = 0x2;
-    inline constexpr int BLACK_CASTLE_SHORT = 0x4;
-    inline constexpr int BLACK_CASTLE_LONG = 0x8;
+    template<bool isWhite>
+    void undoMove(const Move move, const Irreversibles& state);
 
-    void print(bool isWhiteOnBottom);
+    inline void clear();
+
 };
 
 

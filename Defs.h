@@ -14,7 +14,7 @@ typedef unsigned long long U64;
 typedef int Piece;
 typedef int Square;
 
-enum Color
+enum Color : int
 {
     WHITE = 1,
     BLACK = -1
@@ -90,7 +90,7 @@ enum
     BLACK_KING
 };
 
-enum
+enum : Square
 {
     A8, B8, C8, D8, E8, F8, G8, H8,
     A7, B7, C7, D7, E7, F7, G7, H7,
@@ -236,10 +236,10 @@ Square northWest(const Square square)
     return square - 9 * distance;
 }
 
-inline long getEpochMilis()
+inline long getEpochMillis()
 {
-    static const auto start_time = std::chrono::steady_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time).count();
+    return duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 // some debug code will live here temporarily

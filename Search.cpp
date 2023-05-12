@@ -5,78 +5,91 @@
 #include "Search.h"
 #include "Notation.h"
 
-bool Search::isOutOfTime = false;
-long Search::endTime = 0;
-
-namespace
+Search::Search(Position& position, Gen& generator)
+: position(position), generator(generator), captureScores{0}
 {
-    Score captureScores[13][13];
+    branchNodes = 0;
+    leafNodes = 0;
+    quietNodes = 0;
 
-    void initCaptureScores()
-    {
-        static constexpr Score attackerScores[13] = {
-                0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
-        };
-        static constexpr Score victimScores[13] = {
-                0, 100, 200, 300, 400, 500, 0, 100, 200, 300, 400, 500, 0
-        };
+    endTime = 0;
+    isOutOfTime = false;
 
-        for (Piece attacker = NULL_PIECE; attacker <= BLACK_KING; attacker++)
-        {
-            for (Piece victim = NULL_PIECE; victim <= BLACK_KING; victim++)
-            {
-                captureScores[attacker][victim] = victimScores[victim] - attackerScores[attacker];
-            }
-        }
-    }
-
-    inline void orderMove(Move moves[256], int numMoves, int moveNum)
-    {
-        Score bestScore = Eval::MIN_SCORE;
-        int bestMoveIndex = -1;
-        for (int i = moveNum; i < numMoves; i++)
-        {
-            Move move = moves[i];
-            Score score = captureScores[Moves::getMoved(move)][Moves::getCaptured(move)];
-            if (score > bestScore)
-            {
-                bestScore = score;
-                bestMoveIndex = i;
-            }
-        }
-
-        Move bestMove = moves[bestMoveIndex];
-        moves[bestMoveIndex] = moves[moveNum];
-        moves[moveNum] = bestMove;
-    }
-
-    inline bool isRepetition()
-    {
-        int repetitions = 1;
-        int index = Position::totalPlies - Position::irreversibles.reversiblePlies;
-        while (index <= Position::totalPlies)
-        {
-            if (Position::hash == Position::history[index++])
-            {
-                repetitions++;
-            }
-        }
-        return repetitions >= 3;
-    }
-
-    struct SearchInfo
-    {
-        U64 negaNodes;
-        U64 quietNodes;
-        U64 leafNodes;
+    // initialize the capture scores
+    static constexpr Score attackerScores[13] = {
+            0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
     };
-
-    SearchInfo info;
-
-    Score quiescence(Score alpha, Score beta, int color)
+    static constexpr Score victimScores[13] = {
+            0, 100, 200, 300, 400, 500, 0, 100, 200, 300, 400, 500, 0
+    };
+    for (Piece attacker = NULL_PIECE; attacker <= BLACK_KING; attacker++)
     {
-        info.quietNodes++;
-        Score score = Eval::evaluate(Position::materialScore, Position::midgamePlacementScore) * color;
+        for (Piece victim = NULL_PIECE; victim <= BLACK_KING; victim++)
+        {
+            captureScores[attacker][victim] = victimScores[victim] - attackerScores[attacker];
+        }
+    }
+}
+
+void Search::orderMove(Move moves[256], int numMoves, int moveNum)
+{
+    Score bestScore = MIN_SCORE;
+    int bestMoveIndex = -1;
+    for (int i = moveNum; i < numMoves; i++)
+    {
+        Move move = moves[i];
+        Score score = captureScores[getMoved(move)][getCaptured(move)];
+        if (score > bestScore)
+        {
+            bestScore = score;
+            bestMoveIndex = i;
+        }
+    }
+
+    Move bestMove = moves[bestMoveIndex];
+    moves[bestMoveIndex] = moves[moveNum];
+    moves[moveNum] = bestMove;
+}
+
+bool Search::isRepetition()
+{
+    int repetitions = 1;
+    int index = position.totalPlies - position.irreversibles.reversiblePlies;
+    while (index <= position.totalPlies)
+    {
+        if (position.hash == position.history[index++])
+        {
+            repetitions++;
+        }
+    }
+    return repetitions >= 3;
+}
+
+Score Search::quiescence(Score alpha, const Score beta, const int color)
+{
+    quietNodes++;
+    Score score = evaluate(position.materialScore, position.midgamePlacementScore) * color;
+    if (score >= beta)
+    {
+        return beta;
+    }
+    if (score > alpha)
+    {
+        alpha = score;
+    }
+
+    generator.genCaptures();
+    Move captures[256];
+    std::memcpy(captures, generator.moveList, sizeof(Gen::moveList));
+    const int numCaptures = generator.numMoves;
+    const Position::Irreversibles state = position.irreversibles;
+    for (int captureNum = 0; captureNum < numCaptures; captureNum++)
+    {
+        orderMove(captures, numCaptures, captureNum);
+        Move move = captures[captureNum];
+        position.makeMove(move);
+        Score score = -quiescence(-beta, -alpha, -color);
+        position.unMakeMove(move, state);
         if (score >= beta)
         {
             return beta;
@@ -85,117 +98,100 @@ namespace
         {
             alpha = score;
         }
-
-        Gen::genCaptures();
-        Move captures[256];
-        std::memcpy(captures, Gen::moveList, sizeof(Gen::moveList));
-        const int numCaptures = Gen::numMoves;
-        const Position::Irreversibles state = Position::irreversibles;
-        for (int captureNum = 0; captureNum < numCaptures; captureNum++)
-        {
-            orderMove(captures, numCaptures, captureNum);
-            Move move = captures[captureNum];
-            Position::makeMove(move);
-            Score score = -quiescence(-beta, -alpha, -color);
-            Position::unMakeMove(move, state);
-            if (score >= beta)
-            {
-                return beta;
-            }
-            if (score > alpha)
-            {
-                alpha = score;
-            }
-        }
-        return alpha;
     }
+    return alpha;
+}
 
-    Score negamax(int color, int depth, Score alpha, Score beta)
+Score Search::negamax(int color, int depth, Score alpha, Score beta)
+{
+    if (isOutOfTime)
     {
-        if (getEpochMilis() > Search::endTime)
+        return 0;
+    }
+    if (leafNodes & 2047)
+    {
+        // check if we ran out of time
+        if (getEpochMillis() > endTime)
         {
-            Search::isOutOfTime = true;
+            isOutOfTime = true;
             return 0;
         }
-
-        if (isRepetition() || Position::irreversibles.reversiblePlies >= 50)
-        {
-            info.leafNodes++;
-            return Eval::CONTEMPT;
-        }
-        if (!depth)
-        {
-            info.leafNodes++;
-            //return quiescence(alpha, beta, color);
-            return Eval::evaluate(Position::materialScore, Position::midgamePlacementScore) * color;
-        }
-        info.negaNodes++;
-
-        Gen::genMoves();
-        const int numMoves = Gen::numMoves;
-        if (!numMoves)
-        {
-            if (~Gen::safeSquares & Position::bitboards[color == WHITE ? WHITE_KING : BLACK_KING])
-            {
-                return Eval::MIN_SCORE + Search::MAX_DEPTH - depth;
-            }
-            else
-            {
-                return Eval::CONTEMPT;
-            }
-        }
-        Move moves[256];
-        std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
-        const Position::Irreversibles state = Position::irreversibles;
-        for (int moveNum = 0; moveNum < numMoves; moveNum++)
-        {
-            orderMove(moves, numMoves, moveNum);
-            Move move = moves[moveNum];
-            Position::makeMove(move);
-            Score score = -negamax(-color, depth - 1, -beta, -alpha);
-            Position::unMakeMove(move, state);
-            if (score >= beta)
-            {
-                return beta;
-            }
-            if (score > alpha)
-            {
-                alpha = score;
-            }
-        }
-        return alpha;
     }
+    // if we have broken the threefold repetition rule or the fifty move rule
+    if (isRepetition() || position.irreversibles.reversiblePlies >= 100)
+    {
+        leafNodes++;
+        return CONTEMPT;
+    }
+    if (!depth)
+    {
+        leafNodes++;
+        //return quiescence(alpha, beta, color);
+        return evaluate(position.materialScore, position.midgamePlacementScore) * color;
+    }
+    branchNodes++;
+
+    generator.genMoves();
+    const int numMoves = generator.numMoves;
+    if (!numMoves)
+    {
+        if (generator.isInCheck(color))
+        {
+            return MIN_SCORE + MAX_DEPTH - depth;
+        }
+        else
+        {
+            return CONTEMPT;
+        }
+    }
+    Move moves[256];
+    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
+    const Position::Irreversibles state = position.irreversibles;
+    for (int moveNum = 0; moveNum < numMoves; moveNum++)
+    {
+        orderMove(moves, numMoves, moveNum);
+        Move move = moves[moveNum];
+        position.makeMove(move);
+        Score score = -negamax(-color, depth - 1, -beta, -alpha);
+        position.unMakeMove(move, state);
+        if (score >= beta)
+        {
+            return beta;
+        }
+        if (score > alpha)
+        {
+            alpha = score;
+        }
+    }
+    return alpha;
 }
 
-void Search::init()
-{
-    initCaptureScores();
-}
 
 Move Search::searchByDepth(const int depth)
 {
     isOutOfTime = false;
+    branchNodes = 0;
+    leafNodes = 0;
+    quietNodes = 0;
 
     timespec start = {};
     timespec end = {};
     clock_gettime(CLOCK_REALTIME, &start);
 
-    info = {};
-
-    Score bestScore = Eval::MIN_SCORE;
+    Score bestScore = MIN_SCORE;
     std::vector<Move> bestMoves;
 
-    Gen::genMoves();
-    const int numMoves = Gen::numMoves;
+    generator.genMoves();
+    const int numMoves = generator.numMoves;
     Move moves[256];
-    std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
-    const Position::Irreversibles state = Position::irreversibles;
+    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
+    const Position::Irreversibles state = position.irreversibles;
     for (int i = 0; i < numMoves; i++)
     {
         Move move = moves[i];
 
-        Position::makeMove(move);
-        Score score = -negamax(Position::isWhiteToMove ? WHITE : BLACK, depth, Eval::MIN_SCORE, Eval::MAX_SCORE);
+        position.makeMove(move);
+        Score score = -negamax(position.isWhiteToMove ? WHITE : BLACK, depth, MIN_SCORE, MAX_SCORE);
         if (score > bestScore)
         {
             bestMoves.clear();
@@ -206,10 +202,10 @@ Move Search::searchByDepth(const int depth)
         {
             bestMoves.push_back(move);
         }
-        Position::unMakeMove(move, state);
+        position.unMakeMove(move, state);
         if (isOutOfTime)
         {
-            return Moves::NULL_MOVE;
+            return NULL_MOVE;
         }
     }
     // add some variance during the game because when carl goes against other
@@ -217,34 +213,33 @@ Move Search::searchByDepth(const int depth)
     Move bestMove = bestMoves[rand() % bestMoves.size()];
 
     clock_gettime(CLOCK_REALTIME, &end);
-    /*
+
     double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
     double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
     double msElapsed = endMillis - startMillis;
 
-    double branchingFactor = (double)(info.negaNodes + info.leafNodes - 1) / (double)info.negaNodes;
+    double branchingFactor = (double)(branchNodes + leafNodes - 1) / (double)branchNodes;
 
-    std::cout << "\t\t ~ Depth: " << depth << ", Time: " << msElapsed << "ms, Score: " << bestScore;
-    std::cout << ", Move: " << Notation::moveToStr(bestMove) << ", Negamax nodes: " << info.negaNodes;
-    std::cout << ", Quiet nodes: " << info.quietNodes << ", Leaf nodes: " << info.leafNodes;
-    std::cout << ", kN/S: " << (double)(info.negaNodes + info.quietNodes) / msElapsed;
-    std::cout << ", Average branching factor: " << branchingFactor << "\n";
-     */
+    std::cout << "info string Depth: " << depth << ", Time: " << msElapsed << "ms, Score: " << bestScore;
+    std::cout << ", Move: " << moveToStr(bestMove) << ", branch nodes: " << branchNodes;
+    std::cout << ", Quiet nodes: " << quietNodes << ", Leaf nodes: " << leafNodes;
+    std::cout << ", kN/S: " << (double)(branchNodes + quietNodes) / msElapsed;
+    std::cout << ", ABF: " << branchingFactor << "\n";
 
     return bestMove;
 }
 
 Move Search::searchByTime(const int millis)
 {
-    long startTime = getEpochMilis();
+    long startTime = getEpochMillis();
     endTime = startTime + millis;
 
-    Gen::genMoves();
-    const int numMoves = Gen::numMoves;
+    generator.genMoves();
+    const int numMoves = generator.numMoves;
     if (numMoves == 1)
     {
-        //std::cout << "\t~ Target elapsed: " << millis << ", Actual elapsed: " << getEpochMilis() - startTime << "\n";
-        return Gen::moveList[0];
+        std::cout << "info string Target elapsed: " << millis << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
+        return generator.moveList[0];
     }
 
     int depth = 0;
@@ -253,17 +248,17 @@ Move Search::searchByTime(const int millis)
     while (++depth <= MAX_DEPTH)
     {
         // if we estimate the next search will take too much time
-        if (endTime < getEpochMilis() + 7 * lastSearchTime)
+        if (endTime < getEpochMillis() + 7 * lastSearchTime)
         {
             // give up and use the best move from the previous depth
             break;
         }
 
-        long searchStartTime = getEpochMilis();
+        long searchStartTime = getEpochMillis();
         const Move bestForDepth = searchByDepth(depth);
-        lastSearchTime = getEpochMilis() - searchStartTime;
+        lastSearchTime = getEpochMillis() - searchStartTime;
         // if we ran out of time while searching
-        if (bestForDepth == Moves::NULL_MOVE)
+        if (bestForDepth == NULL_MOVE)
         {
             // give up and use the best move from the previous depth
             break;
@@ -271,7 +266,7 @@ Move Search::searchByTime(const int millis)
         best = bestForDepth;
     }
 
-    //std::cout << "\t~ Target elapsed: " << millis << ", Actual elapsed: " << getEpochMilis() - startTime << "\n";
+    std::cout << "info string Target elapsed: " << millis << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
 
     return best;
 }
@@ -282,7 +277,9 @@ Move Search::searchByTimeControl(
         const int whiteIncrement,
         const int blackIncrement)
 {
-    int bestTime = (whiteRemaining + whiteIncrement * 29) / 30;
+    int estimatedRemaining = whiteRemaining + whiteIncrement * 19;
+    int bestTime = estimatedRemaining / 20;
+
     return searchByTime(bestTime);
 }
 

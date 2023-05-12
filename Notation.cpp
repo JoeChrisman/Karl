@@ -5,7 +5,7 @@
 #include <string>
 #include "Notation.h"
 
-std::string Notation::pieceToUnicode(const Piece piece)
+std::string pieceToUnicode(const Piece piece)
 {
     switch (piece)
     {
@@ -25,7 +25,7 @@ std::string Notation::pieceToUnicode(const Piece piece)
     }
 }
 
-Piece Notation::charToPiece(const char letter)
+Piece charToPiece(const char letter)
 {
     switch (letter)
     {
@@ -45,7 +45,7 @@ Piece Notation::charToPiece(const char letter)
     }
 }
 
-char Notation::pieceToChar(const Piece piece)
+char pieceToChar(const Piece piece)
 {
     switch (piece)
     {
@@ -65,34 +65,34 @@ char Notation::pieceToChar(const Piece piece)
     }
 }
 
-int Notation::charToFile(const char fileChar)
+int charToFile(const char fileChar)
 {
     return (int)(fileChar - 'a');
 }
 
-std::string Notation::fileToStr(const int file)
+std::string fileToStr(const int file)
 {
     return std::string{char(file + 'a')};
 }
 
-std::string Notation::rankToStr(const int rank)
+std::string rankToStr(const int rank)
 {
     return std::string{char('1' + rank)};
 }
 
-std::string Notation::squareToStr(const Square square)
+std::string squareToStr(const Square square)
 {
     return fileToStr(getFile(square)) + rankToStr((getRank(square)));
 }
 
-std::string Notation::moveToStr(const Move move)
+std::string moveToStr(const Move move)
 {
-    if (move == Moves::NULL_MOVE)
+    if (move == NULL_MOVE)
     {
         return "NULL";
     }
-    std::string str = squareToStr(Moves::getFrom(move)) + squareToStr(Moves::getTo(move));
-    const Piece promoted = Moves::getPromoted(move);
+    std::string str = squareToStr(getFrom(move)) + squareToStr(getTo(move));
+    const Piece promoted = getPromoted(move);
     if (promoted != NULL_PIECE)
     {
         str += (char)tolower(pieceToChar(promoted));

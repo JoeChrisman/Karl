@@ -4,21 +4,13 @@
 
 #include "Zobrist.h"
 
-Hash Zobrist::PIECES[64][13];
-Hash Zobrist::CASTLING[16];
-Hash Zobrist::EN_PASSANT[8];
-
-Hash Zobrist::WHITE_TO_MOVE;
-
-namespace
+Hash Zobrist::getRandomHash()
 {
-    Hash getRandomHash()
-    {
-        return ((Hash)(rand()) << 32) | rand();
-    }
+    return ((Hash)(rand()) << 32) | rand();
 }
 
-void Zobrist::init()
+Zobrist::Zobrist()
+: PIECES{0}, CASTLING{0}, EN_PASSANT{0}
 {
     WHITE_TO_MOVE = getRandomHash();
 

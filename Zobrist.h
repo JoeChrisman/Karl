@@ -10,15 +10,18 @@
 
 typedef unsigned long long Hash;
 
-namespace Zobrist
+class Zobrist
 {
-    void init();
+public:
+    Zobrist();
 
-    extern Hash PIECES[64][13];
-    extern Hash CASTLING[16];
-    extern Hash EN_PASSANT[8];
+    Hash PIECES[64][13];
+    Hash CASTLING[16];
+    Hash EN_PASSANT[8];
+    Hash WHITE_TO_MOVE;
 
-    extern Hash WHITE_TO_MOVE;
+private:
+    static Hash getRandomHash();
 
 };
 

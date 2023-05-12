@@ -8,194 +8,13 @@
 #include "Cli.h"
 #include "Notation.h"
 
-namespace
+Cli::Cli(const Zobrist& zobrist, const Magics& magics)
+: zobrist(zobrist), magics(magics), position(zobrist), generator(position, magics), search(position, generator)
 {
-    bool isWhiteOnBottom = true;
-
-    void showReady()
-    {
-        std::cout << "> ";
-    }
-
-    struct PerftInfo
-    {
-        U64 totalNodes;
-        U64 totalSplit;
-
-        U64 nodes;
-        U64 captures;
-        U64 enPassants;
-        U64 promotions;
-        U64 castles;
-    };
-
-    void printPerftInfo(const PerftInfo& info, const int depth, const double msElapsed)
-    {
-        std::cout << "\t~ Depth " << depth << " perft results\n";
-        std::cout << "\t~ =========================\n";
-        std::cout << "\t~ Time        | " << msElapsed << "ms\n";
-        std::cout << "\t~ kN/s        | " << (double)info.totalNodes / msElapsed << "\n";
-        std::cout << "\t~ Nodes       | " << info.nodes << "\n";
-        std::cout << "\t~ Promotions  | " << info.promotions << "\n";
-        std::cout << "\t~ Captures    | " << info.captures << "\n";
-        std::cout << "\t~ Castles     | " << info.castles << "\n";
-        std::cout << "\t~ En passants | " << info.enPassants << "\n";
-        std::cout << "\t~ =========================\n";
-    }
-
-    void perft(int depth, PerftInfo &info, int splitDepth = -1)
-    {
-        info.totalNodes++;
-
-        if (!depth)
-        {
-            info.nodes++;
-            if (splitDepth != -1)
-            {
-                info.totalSplit++;
-            }
-            return;
-        }
-        Position::Irreversibles state = Position::irreversibles;
-        Gen::genMoves();
-        Move moves[256];
-        std::memcpy(moves, Gen::moveList, sizeof(Gen::moveList));
-        int numMoves = Gen::numMoves;
-        for (int i = 0; i < numMoves; i++)
-        {
-            Move move = moves[i];
-            if (depth == 1)
-            {
-                if (Moves::getCaptured(move) != NULL_PIECE)
-                {
-                    info.captures++;
-                }
-                if (move & Moves::EN_PASSANT)
-                {
-                    info.enPassants++;
-                }
-                if (move & (Moves::LONG_CASTLE | Moves::SHORT_CASTLE))
-                {
-                    info.castles++;
-                }
-                if (Moves::getPromoted(move) != NULL_PIECE)
-                {
-                    info.promotions++;
-                }
-            }
-            Position::makeMove(move);
-            if (splitDepth == depth)
-            {
-                info.totalSplit = 0;
-                perft(depth - 1, info, splitDepth);
-                std::cout << "~ " << Notation::moveToStr(move) << ": " << info.totalSplit << "\n";
-            }
-            else
-            {
-                perft(depth - 1, info, splitDepth);
-            }
-
-            Position::unMakeMove(move, state);
-        }
-    }
-
-    void runPerftSuite()
-    {
-        int passes = 0;
-        int failures = 0;
-
-        std::ifstream tests("../perftSuite.txt");
-
-        U64 totalNodes = 0;
-        timespec start = {};
-        timespec end = {};
-        clock_gettime(CLOCK_REALTIME, &start);
-
-        // read each test
-        std::string test;
-        while (std::getline(tests, test))
-        {
-            std::vector<std::string> testContents;
-            size_t index = test.find(';');
-            testContents.push_back(test.substr(0, index - 1));
-            test = test.substr(index + 1, test.length() - index);
-            // split each test string by semicolon delimiter
-            do
-            {
-                index = test.find(';');
-                testContents.push_back(test.substr(2, index - 2));
-                test = test.substr(index + 1, test.length() - index);
-            }
-            while (index != std::string::npos);
-
-            // the first string read was the fen string
-            if (!Position::init(testContents[0]))
-            {
-                std::cout << "~ Invalid FEN string found in file \"perftSuite.txt\"\n";
-                return;
-            }
-            const Hash hashBefore = Position::hash;
-            const Score materialScoreBefore = Position::materialScore;
-            const Score midgamePlacementScoreBefore = Position::midgamePlacementScore;
-
-            std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
-            // the rest of the strings are depths and node counts
-            for (int depth = 1; depth < testContents.size(); depth++)
-            {
-                PerftInfo info = {};
-                perft(depth, info);
-                totalNodes += info.totalNodes;
-                int nodes = std::stoi(testContents[depth]);
-                if (Position::hash != hashBefore)
-                {
-                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect hash\n";
-                    std::cout << "\t~ Expected hash to be " << std::hex << "0x" << hashBefore;
-                    std::cout << ", but found " << "0x" << Position::hash << std::dec << "\n";
-                    failures++;
-                }
-                else if (Position::materialScore != materialScoreBefore)
-                {
-                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect material score\n";
-                    std::cout << "\t~ Expected score to be " << materialScoreBefore << ", but found " << Position::materialScore << "\n";
-                    failures++;
-                }
-                else if (Position::midgamePlacementScore != midgamePlacementScoreBefore)
-                {
-                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect midgame placement score\n";
-                    std::cout << "\t~ Expected score to be " << midgamePlacementScoreBefore << ", but found " << Position::midgamePlacementScore << "\n";
-                    failures++;
-                }
-                else if (info.nodes == nodes)
-                {
-                    std::cout << "~ [PASS] Perft unit test at depth " << depth << " passed with " << info.nodes << " nodes\n";
-                    passes++;
-                }
-                else
-                {
-                    std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed with " << info.nodes << " nodes\n";
-                    std::cout << "\t~ Expected " << nodes << " nodes, but found " << info.nodes << "\n";
-                    failures++;
-                }
-            }
-        }
-        clock_gettime(CLOCK_REALTIME, &end);
-
-        double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
-        double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
-        double msElapsed = endMillis - startMillis;
-
-        std::cout << "~ Perft suite run complete\n";
-        std::cout << "\t~ =========================\n";
-        std::cout << "\t~ Tests ran    | " << passes + failures << "\n";
-        std::cout << "\t~ Time         | " << msElapsed / 1000 << "s\n";
-        std::cout << "\t~ kN/s         | " << (double)totalNodes / msElapsed << "\n";
-        std::cout << "\t~ Tests passed | " << passes << "\n";
-        std::cout << "\t~ Tests failed | " << failures << "\n";
-        std::cout << "\t~ =========================\n";
-    }
+    isWhiteOnBottom = true;
 }
 
-int Cli::runKarlCli()
+int Cli::runCli()
 {
     std::cout << R"(
                       (\=,
@@ -273,7 +92,7 @@ ____  __.           ))   `\_) .__
             {
                 fen = command.substr(5, std::string::npos);
             }
-            if (Position::init(fen))
+            if (position.loadFen(fen))
             {
                 std::cout << "~ Successfully loaded FEN string \"" << fen << "\"\n";
             }
@@ -286,25 +105,25 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "show")
         {
-            Position::print(isWhiteOnBottom);
+            position.print(isWhiteOnBottom);
             showReady();
         }
         else if (command == "info")
         {
-            const std::string sideToMove = Position::isWhiteToMove ? "white" : "black";
-            const int castlingFlags = Position::irreversibles.castlingFlags;
-            const int enPassant = Position::irreversibles.enPassantFile;
-            const std::string enPassantFile = enPassant == -1 ? "NULL" : Notation::fileToStr(enPassant);
+            const std::string sideToMove = position.isWhiteToMove ? "white" : "black";
+            const int castlingFlags = position.irreversibles.castlingFlags;
+            const int enPassant = position.irreversibles.enPassantFile;
+            const std::string enPassantFile = enPassant == -1 ? "NULL" : fileToStr(enPassant);
 
             std::cout << "~ Position info:\n";
             std::cout << "\t~ =====================================\n";
-            std::cout << "\t~ Zobrist hash     | 0x" << std::hex << Position::hash << std::dec << "\n";
+            std::cout << "\t~ Zobrist hash     | 0x" << std::hex << position.hash << std::dec << "\n";
             std::cout << "\t~ Side to move     | " << sideToMove << "\n";
             std::cout << "\t~ En passant file  | " << enPassantFile << "\n";
             std::cout << "\t~ Castling flags   | 0x" << std::hex << castlingFlags << std::dec << "\n";
-            std::cout << "\t~ Material score   | " << Position::materialScore << "\n";
-            std::cout << "\t~ Total plies      | " << Position::totalPlies << "\n";
-            std::cout << "\t~ Reversible plies | " << Position::irreversibles.reversiblePlies << "\n";
+            std::cout << "\t~ Material score   | " << position.materialScore << "\n";
+            std::cout << "\t~ Total plies      | " << position.totalPlies << "\n";
+            std::cout << "\t~ Reversible plies | " << position.irreversibles.reversiblePlies << "\n";
             std::cout << "\t~ =====================================\n";
             showReady();
         }
@@ -324,8 +143,8 @@ ____  __.           ))   `\_) .__
                     showReady();
                     continue;
                 }
-                Move best = Search::searchByTime(time);
-                std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
+                Move best = search.searchByTime(time);
+                std::cout << "~ Best move: " << moveToStr(best) << "\n";
             }
             else if (command.substr(7, 5) == "depth")
             {
@@ -341,14 +160,14 @@ ____  __.           ))   `\_) .__
                     showReady();
                     continue;
                 }
-                Move best = Search::searchByDepth(depth);
-                std::cout << "~ Best move: " << Notation::moveToStr(best) << "\n";
+                Move best = search.searchByDepth(depth);
+                std::cout << "~ Best move: " << moveToStr(best) << "\n";
             }
             showReady();
         }
         else if (command == "who")
         {
-            if (Position::isWhiteToMove)
+            if (position.isWhiteToMove)
             {
                 std::cout << "~ It is white to move\n";
             }
@@ -361,20 +180,20 @@ ____  __.           ))   `\_) .__
         else if (command.substr(0, 8) == "makemove")
         {
             std::string notation = command.substr(9, std::string::npos);
-            Gen::genMoves();
-            Move legalMove = Moves::NULL_MOVE;
-            for (int i = 0; i < Gen::numMoves; i++)
+            generator.genMoves();
+            Move legalMove = NULL_MOVE;
+            for (int i = 0; i < generator.numMoves; i++)
             {
-                Move move = Gen::moveList[i];
-                if (Notation::moveToStr(move) == notation)
+                Move move = generator.moveList[i];
+                if (moveToStr(move) == notation)
                 {
                     legalMove = move;
                     break;
                 }
             }
-            if (legalMove != Moves::NULL_MOVE)
+            if (legalMove != NULL_MOVE)
             {
-                Position::makeMove(legalMove);
+                position.makeMove(legalMove);
                 std::cout << "~ Successfully played move \"" << notation << "\"\n";
             }
             else
@@ -386,21 +205,21 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "moves")
         {
-            Gen::genMoves();
-            std::cout << "~ There are " << Gen::numMoves << " moves\n";
-            for (int i = 0; i < Gen::numMoves; i++)
+            generator.genMoves();
+            std::cout << "~ There are " << generator.numMoves << " moves\n";
+            for (int i = 0; i < generator.numMoves; i++)
             {
-                std::cout << "\t~ " << Notation::moveToStr(Gen::moveList[i]) << "\n";
+                std::cout << "\t~ " << moveToStr(generator.moveList[i]) << "\n";
             }
             showReady();
         }
         else if (command == "captures")
         {
-            Gen::genCaptures();
-            std::cout << "~ There are " << Gen::numMoves << " captures\n";
-            for (int i = 0; i < Gen::numMoves; i++)
+            generator.genCaptures();
+            std::cout << "~ There are " << generator.numMoves << " captures\n";
+            for (int i = 0; i < generator.numMoves; i++)
             {
-                std::cout << "\t~ " << Notation::moveToStr(Gen::moveList[i]) << "\n";
+                std::cout << "\t~ " << moveToStr(generator.moveList[i]) << "\n";
             }
             showReady();
         }
@@ -412,8 +231,8 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "pass")
         {
-            Position::isWhiteToMove = !Position::isWhiteToMove;
-            std::cout << "~ Successfully gave " << (Position::isWhiteToMove ? "white" : "black") << " the move\n";
+            position.isWhiteToMove = !position.isWhiteToMove;
+            std::cout << "~ Successfully gave " << (position.isWhiteToMove ? "white" : "black") << " the move\n";
             showReady();
         }
         else if (command.substr(0, 5) == "perft")
@@ -503,7 +322,7 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "uci")
         {
-            if (runKarlUci())
+            if (runUci())
             {
                 return 0;
             }
@@ -519,7 +338,7 @@ ____  __.           ))   `\_) .__
     return 0;
 }
 
-int Cli::runKarlUci()
+int Cli::runUci()
 {
     std::cout << std::flush;
     std::cout << "id name Karl " << VERSION << "\n";
@@ -548,11 +367,16 @@ int Cli::runKarlUci()
             size_t movesIndex = command.find("moves");
             if (command.substr(9, 8) == "startpos")
             {
-                Position::init(INITIAL_FEN);
+                position.loadFen(INITIAL_FEN);
             }
             else
             {
-                Position::init(command.substr(9, movesIndex));
+                if (!position.loadFen(command.substr(9, movesIndex)))
+                {
+                    // our UCI client gave us an invalid FEN string
+                    // just ignore it and hope everything will be okay
+                    continue;
+                }
             }
             if (movesIndex != std::string::npos)
             {
@@ -560,16 +384,16 @@ int Cli::runKarlUci()
                 std::string moveStr;
                 while (moves >> moveStr)
                 {
-                    Gen::genMoves();
-                    for (const Move move : Gen::moveList)
+                    generator.genMoves();
+                    for (const Move move : generator.moveList)
                     {
-                        if (move == Moves::NULL_MOVE)
+                        if (move == NULL_MOVE)
                         {
                             break;
                         }
-                        if (moveStr == Notation::moveToStr(move))
+                        if (moveStr == moveToStr(move))
                         {
-                            Position::makeMove(move);
+                            position.makeMove(move);
                             break;
                         }
                     }
@@ -578,25 +402,207 @@ int Cli::runKarlUci()
         }
         else if (command.substr(0, 2) == "go")
         {
-            std::stringstream timeControls(command.substr(2, std::string::npos));
-            int whiteRemaining;
-            int blackRemaining;
-            int whiteIncrement;
-            int blackIncrement;
-            std::string consume; // get rid of flags sent in the command
-            timeControls >> consume >> whiteRemaining;
-            timeControls >> consume >> blackRemaining;
-            timeControls >> consume >> whiteIncrement;
-            timeControls >> consume >> blackIncrement;
+            Move best;
 
-            const Move best = Search::searchByTimeControl(
-                whiteRemaining,
-                blackRemaining,
-                whiteIncrement,
-                blackIncrement);
+            if (command.substr(0, 11) == "go movetime")
+            {
+                int time = std::stoi(command.substr(12, std::string::npos));
+                best = search.searchByTime(time);
+            }
+            else
+            {
+                std::stringstream timeControls(command.substr(2, std::string::npos));
+                int whiteRemaining;
+                int blackRemaining;
+                int whiteIncrement;
+                int blackIncrement;
+                std::string consume; // get rid of flags sent in the command
+                timeControls >> consume >> whiteRemaining;
+                timeControls >> consume >> blackRemaining;
+                timeControls >> consume >> whiteIncrement;
+                timeControls >> consume >> blackIncrement;
 
-            std::cout << "bestmove " << Notation::moveToStr(best) << "\n";
+                best = search.searchByTimeControl(
+                        whiteRemaining,
+                        blackRemaining,
+                        whiteIncrement,
+                        blackIncrement);
+            }
+
+            std::cout << "bestmove " << moveToStr(best) << "\n";
         }
     }
     return 0;
 }
+
+void Cli::printPerftInfo(const PerftInfo& info, const int depth, const double msElapsed)
+{
+    std::cout << "\t~ Depth " << depth << " perft results\n";
+    std::cout << "\t~ =========================\n";
+    std::cout << "\t~ Time        | " << msElapsed << "ms\n";
+    std::cout << "\t~ kN/s        | " << (double)info.totalNodes / msElapsed << "\n";
+    std::cout << "\t~ Nodes       | " << info.nodes << "\n";
+    std::cout << "\t~ Promotions  | " << info.promotions << "\n";
+    std::cout << "\t~ Captures    | " << info.captures << "\n";
+    std::cout << "\t~ Castles     | " << info.castles << "\n";
+    std::cout << "\t~ En passants | " << info.enPassants << "\n";
+    std::cout << "\t~ =========================\n";
+}
+
+void Cli::perft(int depth, PerftInfo &info, int splitDepth)
+{
+    info.totalNodes++;
+
+    if (!depth)
+    {
+        info.nodes++;
+        if (splitDepth != -1)
+        {
+            info.totalSplit++;
+        }
+        return;
+    }
+    Position::Irreversibles state = position.irreversibles;
+    generator.genMoves();
+    Move moves[256];
+    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
+    int numMoves = generator.numMoves;
+    for (int i = 0; i < numMoves; i++)
+    {
+        Move move = moves[i];
+        if (depth == 1)
+        {
+            if (getCaptured(move) != NULL_PIECE)
+            {
+                info.captures++;
+            }
+            if (move & EN_PASSANT)
+            {
+                info.enPassants++;
+            }
+            if (move & (LONG_CASTLE | SHORT_CASTLE))
+            {
+                info.castles++;
+            }
+            if (getPromoted(move) != NULL_PIECE)
+            {
+                info.promotions++;
+            }
+        }
+        position.makeMove(move);
+        if (splitDepth == depth)
+        {
+            info.totalSplit = 0;
+            perft(depth - 1, info, splitDepth);
+            std::cout << "~ " << moveToStr(move) << ": " << info.totalSplit << "\n";
+        }
+        else
+        {
+            perft(depth - 1, info, splitDepth);
+        }
+
+        position.unMakeMove(move, state);
+    }
+}
+
+void Cli::runPerftSuite()
+{
+    int passes = 0;
+    int failures = 0;
+
+    std::ifstream tests("../perftSuite.txt");
+
+    U64 totalNodes = 0;
+    timespec start = {};
+    timespec end = {};
+    clock_gettime(CLOCK_REALTIME, &start);
+
+    // read each test
+    std::string test;
+    while (std::getline(tests, test))
+    {
+        std::vector<std::string> testContents;
+        size_t index = test.find(';');
+        testContents.push_back(test.substr(0, index - 1));
+        test = test.substr(index + 1, test.length() - index);
+        // split each test string by semicolon delimiter
+        do
+        {
+            index = test.find(';');
+            testContents.push_back(test.substr(2, index - 2));
+            test = test.substr(index + 1, test.length() - index);
+        }
+        while (index != std::string::npos);
+
+        // the first string read was the fen string
+        if (!position.loadFen(testContents[0]))
+        {
+            std::cout << "~ Invalid FEN string found in file \"perftSuite.txt\"\n";
+            return;
+        }
+
+        const Hash hashBefore = position.hash;
+        const Score materialScoreBefore = position.materialScore;
+        const Score midgamePlacementScoreBefore = position.midgamePlacementScore;
+
+        std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
+        // the rest of the strings are depths and node counts
+        for (int depth = 1; depth < testContents.size(); depth++)
+        {
+            PerftInfo info = {};
+            perft(depth, info);
+            totalNodes += info.totalNodes;
+            int nodes = std::stoi(testContents[depth]);
+            if (position.hash != hashBefore)
+            {
+                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect hash\n";
+                std::cout << "\t~ Expected hash to be " << std::hex << "0x" << hashBefore;
+                std::cout << ", but found " << "0x" << position.hash << std::dec << "\n";
+                failures++;
+            }
+            else if (position.materialScore != materialScoreBefore)
+            {
+                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect material score\n";
+                std::cout << "\t~ Expected score to be " << materialScoreBefore << ", but found " << position.materialScore << "\n";
+                failures++;
+            }
+            else if (position.midgamePlacementScore != midgamePlacementScoreBefore)
+            {
+                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect midgame placement score\n";
+                std::cout << "\t~ Expected score to be " << midgamePlacementScoreBefore << ", but found " << position.midgamePlacementScore << "\n";
+                failures++;
+            }
+            else if (info.nodes == nodes)
+            {
+                std::cout << "~ [PASS] Perft unit test at depth " << depth << " passed with " << info.nodes << " nodes\n";
+                passes++;
+            }
+            else
+            {
+                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed with " << info.nodes << " nodes\n";
+                std::cout << "\t~ Expected " << nodes << " nodes, but found " << info.nodes << "\n";
+                failures++;
+            }
+        }
+    }
+    clock_gettime(CLOCK_REALTIME, &end);
+
+    double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
+    double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
+    double msElapsed = endMillis - startMillis;
+
+    std::cout << "~ Perft suite run complete\n";
+    std::cout << "\t~ =========================\n";
+    std::cout << "\t~ Tests ran    | " << passes + failures << "\n";
+    std::cout << "\t~ Time         | " << msElapsed / 1000 << "s\n";
+    std::cout << "\t~ kN/s         | " << (double)totalNodes / msElapsed << "\n";
+    std::cout << "\t~ Tests passed | " << passes << "\n";
+    std::cout << "\t~ Tests failed | " << failures << "\n";
+    std::cout << "\t~ =========================\n";
+}
+
+void Cli::showReady()
+{
+    std::cout << "> ";
+}
+
