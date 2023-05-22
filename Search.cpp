@@ -4,9 +4,10 @@
 
 #include "Search.h"
 #include "Notation.h"
+#include <iomanip>
 
 Search::Search(Position& position, Gen& generator)
-: position(position), generator(generator), captureScores{0}
+: position(position), generator(generator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
     branchNodes = 0;
     leafNodes = 0;
@@ -31,14 +32,38 @@ Search::Search(Position& position, Gen& generator)
     }
 }
 
-void Search::orderMove(Move moves[256], int numMoves, int moveNum)
+template<bool isQuiescent>
+void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth)
 {
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
     for (int i = moveNum; i < numMoves; i++)
     {
-        Move move = moves[i];
-        Score score = captureScores[getMoved(move)][getCaptured(move)];
+        Score score;
+        const Move move = moves[i];
+        // during quiescence search
+        if constexpr (isQuiescent)
+        {
+            // order the move based on capture value and piece value
+            score = captureScores[getMoved(move)][getCaptured(move)];
+        }
+        // during negamax search
+        else
+        {
+            // if this move is a primary killer move
+            if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
+            {
+                // put killer moves after captures
+                score = 94;
+            }
+            // if this move is not a killer move
+            else
+            {
+                // order the move based on capture value and piece value
+                score = captureScores[getMoved(move)][getCaptured(move)];
+            }
+        }
+
         if (score > bestScore)
         {
             bestScore = score;
@@ -85,7 +110,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     const Position::Irreversibles state = position.irreversibles;
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
     {
-        orderMove(captures, numCaptures, captureNum);
+        orderMove<true>(captures, numCaptures, captureNum, -1);
         Move move = captures[captureNum];
         position.makeMove(move);
         Score score = -quiescence(-beta, -alpha, -color);
@@ -102,20 +127,11 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     return alpha;
 }
 
-Score Search::negamax(int color, int depth, Score alpha, Score beta)
+Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
 {
     if (isOutOfTime)
     {
         return 0;
-    }
-    if (leafNodes & 2047)
-    {
-        // check if we ran out of time
-        if (getEpochMillis() > endTime)
-        {
-            isOutOfTime = true;
-            return 0;
-        }
     }
     // if we have broken the threefold repetition rule or the fifty move rule
     if (isRepetition() || position.irreversibles.reversiblePlies >= 100)
@@ -125,7 +141,16 @@ Score Search::negamax(int color, int depth, Score alpha, Score beta)
     }
     if (!depth)
     {
-        leafNodes++;
+        // every few thousand leaf nodes
+        if (++leafNodes & 4095)
+        {
+            // check if we ran out of time
+            if (getEpochMillis() > endTime)
+            {
+                isOutOfTime = true;
+                return 0;
+            }
+        }
         return quiescence(alpha, beta, color);
     }
     branchNodes++;
@@ -148,15 +173,24 @@ Score Search::negamax(int color, int depth, Score alpha, Score beta)
     const Position::Irreversibles state = position.irreversibles;
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
-        orderMove(moves, numMoves, moveNum);
+        orderMove<false>(moves, numMoves, moveNum, depth);
         Move move = moves[moveNum];
         position.makeMove(move);
         Score score = -negamax(-color, depth - 1, -beta, -alpha);
         position.unMakeMove(move, state);
+        // if the score caused a beta cutoff
         if (score >= beta)
         {
+            // a quiet move that caused a beta cutoff is a killer move
+            if (getCaptured(move) == NULL_PIECE)
+            {
+                // store the killer move
+                killerMoves[depth][1] = killerMoves[depth][0];
+                killerMoves[depth][0] = move;
+            }
             return beta;
         }
+        // if the score raised alpha
         if (score > alpha)
         {
             alpha = score;
@@ -173,9 +207,7 @@ ScoredMove Search::searchByDepth(const int depth)
     leafNodes = 0;
     quietNodes = 0;
 
-    timespec start = {};
-    timespec end = {};
-    clock_gettime(CLOCK_REALTIME, &start);
+    const long startMillis = getEpochMillis();
 
     Score bestScore = MIN_SCORE;
     std::vector<Move> bestMoves;
@@ -209,23 +241,10 @@ ScoredMove Search::searchByDepth(const int depth)
     }
     // add some variance during the game because when carl goes against other
     // engines the same game often happens over and over again
-    Move bestMove = bestMoves[rand() % bestMoves.size()];
+    ScoredMove bestMove = ScoredMove{bestMoves[rand() % bestMoves.size()], bestScore};
+    printSearchInfo(getEpochMillis() - startMillis, depth, bestMove);
 
-    clock_gettime(CLOCK_REALTIME, &end);
-
-    double startMillis = (start.tv_sec * 1000.0) + (start.tv_nsec / 1000000.0);
-    double endMillis = (end.tv_sec * 1000.0) + (end.tv_nsec / 1000000.0);
-    double msElapsed = endMillis - startMillis;
-
-    double branchingFactor = (double)(branchNodes + leafNodes - 1) / (double)branchNodes;
-
-    std::cout << "info string Depth: " << depth << ", Time: " << msElapsed << "ms, Score: " << bestScore;
-    std::cout << ", Move: " << moveToStr(bestMove) << ", branch nodes: " << branchNodes;
-    std::cout << ", Quiet nodes: " << quietNodes << ", Leaf nodes: " << leafNodes;
-    std::cout << ", kN/S: " << (double)(branchNodes + quietNodes) / msElapsed;
-    std::cout << ", ABF: " << branchingFactor << "\n";
-
-    return ScoredMove{bestMove, bestScore};
+    return bestMove;
 }
 
 Move Search::searchByTime(const int millis)
@@ -237,7 +256,7 @@ Move Search::searchByTime(const int millis)
     const int numMoves = generator.numMoves;
     if (numMoves == 1)
     {
-        std::cout << "info string Target elapsed: " << millis << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
+        printSearchTime(millis, startTime);
         return generator.moveList[0];
     }
 
@@ -273,7 +292,7 @@ Move Search::searchByTime(const int millis)
         best = bestForDepth;
     }
 
-    std::cout << "info string Target elapsed: " << millis << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
+    printSearchTime(millis, startTime);
 
     return best.move;
 }
@@ -288,4 +307,33 @@ Move Search::searchByTimeControl(
     int bestTime = estimatedRemaining / 20;
 
     return searchByTime(bestTime);
+}
+
+void Search::printSearchInfo(
+        const long msElapsed,
+        const int depth,
+        const ScoredMove& bestMove)
+{
+    const double branchingFactor = (double)(branchNodes + leafNodes - 1) / (double)branchNodes;
+    const std::string kNodesPerSec = msElapsed ? std::to_string((branchNodes + quietNodes) / msElapsed) : "NAN";
+    const std::string elapsed = std::to_string(msElapsed) + "ms";
+
+    std::cout << std::left;
+
+    std::cout << "info string | Depth: " << std::setw(2) << depth;
+    std::cout << std::setw(7) << "| Time: " << std::setw(10) << elapsed;
+    std::cout << std::setw(8) << "| Score: " << std::setw(6) << bestMove.score;
+    std::cout << std::setw(7) << "| Move: " << std::setw(6) << moveToStr(bestMove.move);
+    std::cout << std::setw(15) << "| Branch nodes: " << std::setw(10) << branchNodes;
+    std::cout << std::setw(14) << "| Quiet nodes: " << std::setw(10) << quietNodes;
+    std::cout << std::setw(13) << "| Leaf nodes: " << std::setw(10) << leafNodes;
+    std::cout << std::setw(7) << "| kN/S: " << std::setw(6) << kNodesPerSec;
+    std::cout << std::setw(6) << "| ABF: " << std::setw(10) << branchingFactor << "\n";
+}
+
+void Search::printSearchTime(
+        const long targetElapsed,
+        const long startTime)
+{
+    std::cout << "info string Target elapsed: " << targetElapsed << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
 }

@@ -5,7 +5,6 @@
 #include "Position.h"
 #include "Notation.h"
 #include <sstream>
-#include <stdexcept>
 
 Position::Position(const Zobrist& zobrist)
 : zobrist(zobrist), bitboards{0}, pieces{0}, history{0}
