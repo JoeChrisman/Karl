@@ -14,11 +14,11 @@ inline Score evaluate(const Score material, const Score midgamePlacement)
     return material + midgamePlacement;
 }
 
-static constexpr Score MAX_SCORE = 30000;
-static constexpr Score MIN_SCORE = -30000;
-static constexpr Score CONTEMPT = 250;
+inline constexpr Score MAX_SCORE = 30000;
+inline constexpr Score MIN_SCORE = -30000;
+inline constexpr Score CONTEMPT = 250;
 
-static constexpr Score PIECE_SCORES[13] = {
+inline constexpr Score PIECE_SCORES[13] = {
         0,    // NULL_PIECE
         100,  // WHITE_PAWN
         310,  // WHITE_KNIGHT
@@ -34,7 +34,7 @@ static constexpr Score PIECE_SCORES[13] = {
         0     // BLACK_KING
 };
 
-static constexpr Score MIDGAME_PLACEMENT_SCORES[13][64] = {
+inline constexpr Score MIDGAME_PLACEMENT_SCORES[13][64] = {
         // NULL_PIECE
         {
                 0,   0,   0,   0,   0,   0,   0,   0,

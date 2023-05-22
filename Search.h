@@ -14,7 +14,7 @@ struct ScoredMove
     Score score;
 };
 
-static constexpr int MAX_DEPTH = 64;
+inline constexpr int MAX_DEPTH = 64;
 
 class Search
 {

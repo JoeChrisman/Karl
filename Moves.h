@@ -23,13 +23,13 @@
  * 1111  unused
  */
 typedef int Move;
-static constexpr Move NULL_MOVE = 0;
+inline constexpr Move NULL_MOVE = 0;
 
 // numbers representing bits 24-27. they are move type flags
-static constexpr int DOUBLE_PAWN_PUSH = 0x01000000;
-static constexpr int EN_PASSANT       = 0x02000000;
-static constexpr int SHORT_CASTLE     = 0x04000000;
-static constexpr int LONG_CASTLE      = 0x08000000;
+inline constexpr int DOUBLE_PAWN_PUSH = 0x01000000;
+inline constexpr int EN_PASSANT       = 0x02000000;
+inline constexpr int SHORT_CASTLE     = 0x04000000;
+inline constexpr int LONG_CASTLE      = 0x08000000;
 
 namespace
 {
