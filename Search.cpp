@@ -6,6 +6,8 @@
 #include "Notation.h"
 #include <iomanip>
 
+Search::Node Search::transpositions[TRANSPOSITION_TABLE_SIZE] = {};
+
 Search::Search(Position& position, Gen& generator)
 : position(position), generator(generator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
@@ -15,6 +17,17 @@ Search::Search(Position& position, Gen& generator)
 
     endTime = 0;
     isOutOfTime = false;
+
+    // initialize the transposition table
+    for (Node& node : transpositions)
+    {
+        node = Node{
+                0,
+                NULL_MOVE,
+                0,
+                NULL_SCORE,
+                -1};
+    }
 
     // initialize the capture scores
     static constexpr Score attackerScores[13] = {
@@ -35,6 +48,13 @@ Search::Search(Position& position, Gen& generator)
 template<bool isQuiescent>
 void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth)
 {
+    const Node& node = transpositions[position.hash % TRANSPOSITION_TABLE_SIZE];
+
+    Move bestMove = NULL_MOVE;
+    if (node.hash == position.hash)
+    {
+        bestMove = node.bestMove;
+    }
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
     for (int i = moveNum; i < numMoves; i++)
@@ -45,25 +65,30 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
         if constexpr (isQuiescent)
         {
             // order the move based on capture value and piece value
-            score = captureScores[getMoved(move)][getCaptured(move)];
+            //score = captureScores[getMoved(move)][getCaptured(move)];
         }
-        // during negamax search
+        // during the normal search
         else
         {
+            // if this move was the best in another search
+            if (move == bestMove)
+            {
+                // put this move before all other moves
+                score = 500;
+            }
             // if this move is a primary killer move
-            if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
+            else if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
             {
                 // put killer moves after captures
                 score = 94;
             }
-            // if this move is not a killer move
+            // if this move is not a killer move or a principal variation move
             else
             {
                 // order the move based on capture value and piece value
                 score = captureScores[getMoved(move)][getCaptured(move)];
             }
         }
-
         if (score > bestScore)
         {
             bestScore = score;
@@ -71,7 +96,7 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
         }
     }
 
-    Move bestMove = moves[bestMoveIndex];
+    bestMove = moves[bestMoveIndex];
     moves[bestMoveIndex] = moves[moveNum];
     moves[moveNum] = bestMove;
 }
@@ -105,7 +130,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
 
     generator.genCaptures();
     Move captures[256];
-    std::memcpy(captures, generator.moveList, sizeof(Gen::moveList));
+    std::memcpy(captures, generator.moveList, sizeof generator.moveList);
     const int numCaptures = generator.numMoves;
     const Position::Irreversibles state = position.irreversibles;
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
@@ -127,18 +152,20 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     return alpha;
 }
 
-Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
+Score Search::negamax(const int color, const short depth, Score alpha, Score beta)
 {
     if (isOutOfTime)
     {
         return 0;
     }
+
     // if we have broken the threefold repetition rule or the fifty move rule
     if (isRepetition() || position.irreversibles.reversiblePlies >= 100)
     {
         leafNodes++;
         return CONTEMPT;
     }
+
     if (!depth)
     {
         // every few thousand leaf nodes
@@ -153,8 +180,33 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         }
         return quiescence(alpha, beta, color);
     }
-    branchNodes++;
 
+    Node& node = transpositions[position.hash % TRANSPOSITION_TABLE_SIZE];
+    const bool isTransposition = node.hash == position.hash;
+    // if the current node is usable
+    if (isTransposition && node.depth >= depth)
+    {
+        // if this node has an exact score (raised alpha and never exceeded beta)
+        if (node.scoreType == EXACT_SCORE)
+        {
+            // we can just use the score
+            return node.score;
+        }
+        // if this node failed low (never raised alpha)
+        if (node.scoreType == ALPHA_SCORE && node.score <= alpha)
+        {
+            // we can use the current lower bound
+            return alpha;
+        }
+        // if this node failed high (raised alpha and exceeded beta)
+        else if (node.scoreType == BETA_SCORE && node.score >= beta)
+        {
+            // we can use the current upper bound
+            return beta;
+        }
+    }
+
+    branchNodes++;
     generator.genMoves();
     const int numMoves = generator.numMoves;
     if (!numMoves)
@@ -168,37 +220,57 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
             return CONTEMPT;
         }
     }
+
+    // clear the current node in preparation for overwriting
+    node = {};
+    node.scoreType = ALPHA_SCORE;
+
     Move moves[256];
-    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
+    std::memcpy(moves, generator.moveList, sizeof generator.moveList);
+    Move bestMove = moves[0];
     const Position::Irreversibles state = position.irreversibles;
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
         orderMove<false>(moves, numMoves, moveNum, depth);
         Move move = moves[moveNum];
         position.makeMove(move);
-        Score score = -negamax(-color, depth - 1, -beta, -alpha);
+        const Score score = -negamax(-color, depth - 1, -beta, -alpha);
         position.unMakeMove(move, state);
-        // if the score caused a beta cutoff
-        if (score >= beta)
-        {
-            // a quiet move that caused a beta cutoff is a killer move
-            if (getCaptured(move) == NULL_PIECE)
-            {
-                // store the killer move
-                killerMoves[depth][1] = killerMoves[depth][0];
-                killerMoves[depth][0] = move;
-            }
-            return beta;
-        }
         // if the score raised alpha
         if (score > alpha)
         {
+            node.scoreType = EXACT_SCORE;
+
             alpha = score;
+            bestMove = move;
+            // if the score caused a beta cutoff
+            if (score >= beta)
+            {
+                // a quiet move that caused a beta cutoff is a killer move
+                if (getCaptured(move) == NULL_PIECE)
+                {
+                    // store the killer move
+                    killerMoves[depth][1] = killerMoves[depth][0];
+                    killerMoves[depth][0] = move;
+                }
+                node = Node{
+                    position.hash,
+                    bestMove,
+                    beta,
+                    BETA_SCORE,
+                    depth};
+                return beta;
+            }
         }
     }
+    node = Node{
+            position.hash,
+            bestMove,
+            alpha,
+            node.scoreType,
+            depth};
     return alpha;
 }
-
 
 ScoredMove Search::searchByDepth(const int depth)
 {
@@ -215,7 +287,7 @@ ScoredMove Search::searchByDepth(const int depth)
     generator.genMoves();
     const int numMoves = generator.numMoves;
     Move moves[256];
-    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
+    std::memcpy(moves, generator.moveList, sizeof generator.moveList);
     const Position::Irreversibles state = position.irreversibles;
     for (int i = 0; i < numMoves; i++)
     {

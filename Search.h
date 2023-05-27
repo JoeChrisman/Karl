@@ -8,13 +8,14 @@
 #include "Eval.h"
 #include "Gen.h"
 
+inline constexpr int MAX_DEPTH = 64;
+inline constexpr int TRANSPOSITION_TABLE_SIZE = 16777213;
+
 struct ScoredMove
 {
     Move move;
     Score score;
 };
-
-inline constexpr int MAX_DEPTH = 64;
 
 class Search
 {
@@ -28,12 +29,13 @@ public:
             const int blackRemaining,
             const int whiteIncrement,
             const int blackIncrement);
+
 private:
     Position& position;
     Gen& generator;
 
     Score quiescence(Score alpha, const Score beta, const int color);
-    Score negamax(const int color, const int depth, Score alpha, Score beta);
+    Score negamax(const int color, const short depth, Score alpha, Score beta);
 
     template<bool isQuiescent>
     void orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth);
@@ -58,6 +60,26 @@ private:
 
     Score captureScores[13][13];
     Move killerMoves[MAX_DEPTH][2];
+
+
+    enum ScoreType
+    {
+        NULL_SCORE,
+        EXACT_SCORE,
+        ALPHA_SCORE,
+        BETA_SCORE
+    };
+
+    struct Node
+    {
+        Hash hash;
+        Move bestMove;
+        Score score;
+        ScoreType scoreType;
+        short depth;
+    };
+
+    static Node transpositions[TRANSPOSITION_TABLE_SIZE];
 
 };
 

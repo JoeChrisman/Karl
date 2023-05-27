@@ -8,7 +8,7 @@
 #include <random>
 #include "Defs.h"
 
-typedef unsigned long long Hash;
+typedef long long Hash;
 
 class Zobrist
 {

@@ -58,7 +58,7 @@ public:
     Score midgamePlacementScore;
     Score endgamePlacementScore;
 
-    int totalPlies;
+    short totalPlies;
     bool isWhiteToMove;
     Irreversibles irreversibles{};
 
