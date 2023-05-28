@@ -57,6 +57,7 @@ bool Position::loadFen(const std::string& fen)
             pieces[square] = piece;
             bitboards[piece] |= getBoard(square);
             materialScore += PIECE_SCORES[piece];
+            midgamePlacementScore += MIDGAME_PLACEMENT_SCORES[piece][square];
             hash ^= zobrist.PIECES[square][piece];
             square++;
         }
@@ -457,6 +458,8 @@ void Position::clear()
 
     hash = 0;
     materialScore = 0;
+    midgamePlacementScore = 0;
+    endgamePlacementScore = 0;
     totalPlies = 0;
     isWhiteToMove = true;
     irreversibles = {};
