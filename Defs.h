@@ -20,7 +20,7 @@ enum Color : int
     BLACK = -1
 };
 
-const std::string VERSION = "0.4 <beta>";
+const std::string VERSION = "0.5 <beta>";
 const std::string INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 constexpr U64 EMPTY_BOARD = 0;
 constexpr U64 FULL_BOARD = ~0;

@@ -136,7 +136,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
     {
         orderMove<true>(captures, numCaptures, captureNum, -1);
-        Move move = captures[captureNum];
+        const Move move = captures[captureNum];
         position.makeMove(move);
         Score score = -quiescence(-beta, -alpha, -color);
         position.unMakeMove(move, state);
@@ -154,6 +154,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
 
 Score Search::negamax(const int color, const short depth, Score alpha, Score beta)
 {
+    // if we are out of time, return an arbitrary score
     if (isOutOfTime)
     {
         return 0;
@@ -166,27 +167,13 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
         return CONTEMPT;
     }
 
-    if (!depth)
-    {
-        // every few thousand leaf nodes
-        if (++leafNodes & 4095)
-        {
-            // check if we ran out of time
-            if (getEpochMillis() > endTime)
-            {
-                isOutOfTime = true;
-                return 0;
-            }
-        }
-        return quiescence(alpha, beta, color);
-    }
-
+    // access any previous searches we have cached
     Node& node = transpositions[position.hash % TRANSPOSITION_TABLE_SIZE];
     const bool isTransposition = node.hash == position.hash;
     // if the current node is usable
     if (isTransposition && node.depth >= depth)
     {
-        // if this node has an exact score (raised alpha and never exceeded beta)
+        // if this node has an exact score (principal variation or a leaf node)
         if (node.scoreType == EXACT_SCORE)
         {
             // we can just use the score
@@ -198,7 +185,7 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
             // we can use the current lower bound
             return alpha;
         }
-        // if this node failed high (raised alpha and exceeded beta)
+            // if this node failed high (raised alpha and exceeded beta)
         else if (node.scoreType == BETA_SCORE && node.score >= beta)
         {
             // we can use the current upper bound
@@ -206,23 +193,55 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
         }
     }
 
+    // if this node is a leaf node
+    if (!depth)
+    {
+        // every few thousand leaf nodes
+        if (++leafNodes & 4095)
+        {
+            // check if we ran out of time
+            if (getEpochMillis() > endTime)
+            {
+                // return an arbitrary score for this search
+                isOutOfTime = true;
+                return 0;
+            }
+        }
+
+        // evaluate the node, but resolve all the captures first
+        const Score evaluation = quiescence(alpha, beta, color);
+        // remember the evaluation so we don't have to search this node again
+        node = Node{
+                position.hash,
+                NULL_MOVE,
+                evaluation,
+                EXACT_SCORE,
+                0};
+        return evaluation;
+    }
+
     branchNodes++;
     generator.genMoves();
     const int numMoves = generator.numMoves;
-    if (!numMoves)
+    // if there are no legal moves
+    if (numMoves == 0)
     {
+        // if we are in check
         if (generator.isInCheck(color))
         {
+            // return a checkmate score, and lower the score the farther the checkmate is
             return MIN_SCORE + MAX_DEPTH - depth;
         }
         else
         {
+            // this is a draw by stalemate, so return the contempt factor
             return CONTEMPT;
         }
     }
 
     // clear the current node in preparation for overwriting
     node = {};
+    // this node has not reached alpha
     node.scoreType = ALPHA_SCORE;
 
     Move moves[256];
@@ -232,13 +251,14 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
         orderMove<false>(moves, numMoves, moveNum, depth);
-        Move move = moves[moveNum];
+        const Move move = moves[moveNum];
         position.makeMove(move);
         const Score score = -negamax(-color, depth - 1, -beta, -alpha);
         position.unMakeMove(move, state);
         // if the score raised alpha
         if (score > alpha)
         {
+            // this node is in the principal variation unless it exceeds beta
             node.scoreType = EXACT_SCORE;
 
             alpha = score;
@@ -253,6 +273,7 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
                     killerMoves[depth][1] = killerMoves[depth][0];
                     killerMoves[depth][0] = move;
                 }
+                // remember this node caused a beta cutoff for later
                 node = Node{
                     position.hash,
                     bestMove,
@@ -263,6 +284,8 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
             }
         }
     }
+
+    // remember this node is in the principal variation or if it caused an alpha cutoff
     node = Node{
             position.hash,
             bestMove,
@@ -308,7 +331,7 @@ ScoredMove Search::searchByDepth(const int depth)
         position.unMakeMove(move, state);
         if (isOutOfTime)
         {
-            return ScoredMove{0, NULL_MOVE};
+            return ScoredMove{NULL_MOVE, 0};
         }
     }
     // add some variance during the game because when carl goes against other

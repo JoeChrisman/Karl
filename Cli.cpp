@@ -387,10 +387,6 @@ int Cli::runUci()
                     generator.genMoves();
                     for (const Move move : generator.moveList)
                     {
-                        if (move == NULL_MOVE)
-                        {
-                            break;
-                        }
                         if (moveStr == moveToStr(move))
                         {
                             position.makeMove(move);
