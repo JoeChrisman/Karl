@@ -8,7 +8,7 @@
 #include "Eval.h"
 #include "Gen.h"
 
-inline static constexpr int MAX_DEPTH = 64;
+inline constexpr int MAX_DEPTH = 64;
 
 struct ScoredMove
 {
@@ -22,19 +22,15 @@ public:
     Search(Position& position, Gen& generator);
 
     ScoredMove searchByDepth(const int depth);
-    Move searchByTime(const int millis);
-    Move searchByTimeControl(
-            const int whiteRemaining,
-            const int blackRemaining,
-            const int whiteIncrement,
-            const int blackIncrement);
+    Move searchByTime(const int msTargetElapsed);
+    Move searchByTimeControl(const int msRemaining, const int msIncrement);
 
 private:
     Position& position;
     Gen& generator;
 
     Score quiescence(Score alpha, const Score beta, const int color);
-    Score negamax(const int color, const short depth, Score alpha, Score beta);
+    Score negamax(const int color, const int depth, Score alpha, Score beta);
 
     template<bool isQuiescent>
     void orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth);
@@ -47,7 +43,7 @@ private:
             const ScoredMove& bestMove);
 
     void printSearchTime(
-            const long targetElapsed,
+            const long msTargetElapsed,
             const long startTime);
 
     U64 branchNodes;

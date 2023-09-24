@@ -7,13 +7,14 @@
 
 #include "Defs.h"
 
-typedef short Score;
+typedef int Score;
 
 inline Score evaluate(const Score material, const Score midgamePlacement)
 {
     return material + midgamePlacement;
 }
 
+inline constexpr Score TIMEOUT = INT_MIN;
 inline constexpr Score MAX_SCORE = 30000;
 inline constexpr Score MIN_SCORE = -30000;
 inline constexpr Score CONTEMPT = 250;

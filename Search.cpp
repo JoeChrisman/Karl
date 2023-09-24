@@ -39,27 +39,24 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
     int bestMoveIndex = -1;
     for (int i = moveNum; i < numMoves; i++)
     {
-        Score score;
+        Score score = 0;
         const Move move = moves[i];
-        // during quiescence search
+
         if constexpr (isQuiescent)
         {
-            // order the move based on capture value and piece value
-            //score = captureScores[getMoved(move)][getCaptured(move)];
+            score = captureScores[getMoved(move)][getCaptured(move)];
         }
         // during the normal search
         else
         {
-            // if this move is a killer move
             if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
             {
                 // put killer moves after captures
                 score = 94;
             }
-            // if this move is not a killer move or a principal variation move
             else
             {
-                // order the move based on capture value and piece value
+                // order moves based on capture value and piece value
                 score = captureScores[getMoved(move)][getCaptured(move)];
             }
         }
@@ -112,7 +109,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
         orderMove<true>(captures, numCaptures, captureNum, -1);
         const Move move = captures[captureNum];
         position.makeMove(move);
-        Score score = -quiescence(-beta, -alpha, -color);
+        score = -quiescence(-beta, -alpha, -color);
         position.unMakeMove(move, state);
         if (score >= beta)
         {
@@ -126,15 +123,12 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     return alpha;
 }
 
-Score Search::negamax(const int color, const short depth, Score alpha, Score beta)
+Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
 {
-    // if we are out of time, return an arbitrary score
     if (isOutOfTime)
     {
-        return 0;
+        return TIMEOUT;
     }
-
-    // if we have broken the threefold repetition rule or the fifty move rule
     if (isRepetition() || position.irreversibles.reversiblePlies >= 100)
     {
         leafNodes++;
@@ -143,16 +137,11 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
 
     if (!depth)
     {
-        // every few thousand leaf nodes
-        if (++leafNodes & 4095)
+        // check if we ran out of time every few thousand leaf nodes
+        if ((++leafNodes & 8191) == 0 && getEpochMillis() > endTime)
         {
-            // check if we ran out of time
-            if (getEpochMillis() > endTime)
-            {
-                // return an arbitrary score for this search
-                isOutOfTime = true;
-                return 0;
-            }
+            isOutOfTime = true;
+            return TIMEOUT;
         }
 
         return quiescence(alpha, beta, color);
@@ -161,10 +150,8 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
     branchNodes++;
     generator.genMoves();
     const int numMoves = generator.numMoves;
-    // if there are no legal moves
     if (numMoves == 0)
     {
-        // if we are in check
         if (generator.isInCheck(color))
         {
             // return a checkmate score, and lower the score the farther the checkmate is
@@ -179,27 +166,24 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
 
     Move moves[256];
     std::memcpy(moves, generator.moveList, sizeof generator.moveList);
-    Move bestMove = moves[0];
     const Position::Irreversibles state = position.irreversibles;
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
         orderMove<false>(moves, numMoves, moveNum, depth);
         const Move move = moves[moveNum];
+
         position.makeMove(move);
         const Score score = -negamax(-color, depth - 1, -beta, -alpha);
         position.unMakeMove(move, state);
-        // if the score raised alpha
+
         if (score > alpha)
         {
             alpha = score;
-            bestMove = move;
-            // if the score caused a beta cutoff
             if (score >= beta)
             {
                 // a quiet move that caused a beta cutoff is a killer move
                 if (getCaptured(move) == NULL_PIECE)
                 {
-                    // store the killer move
                     killerMoves[depth][1] = killerMoves[depth][0];
                     killerMoves[depth][0] = move;
                 }
@@ -234,7 +218,13 @@ ScoredMove Search::searchByDepth(const int depth)
 
         position.makeMove(move);
         Score score = -negamax(position.isWhiteToMove ? WHITE : BLACK, depth, MIN_SCORE, MAX_SCORE);
-        if (score > bestScore)
+        position.unMakeMove(move, state);
+
+        if (isOutOfTime)
+        {
+            return ScoredMove{NULL_MOVE, TIMEOUT};
+        }
+        else if (score > bestScore)
         {
             bestMoves.clear();
             bestMoves.push_back(move);
@@ -244,30 +234,23 @@ ScoredMove Search::searchByDepth(const int depth)
         {
             bestMoves.push_back(move);
         }
-        position.unMakeMove(move, state);
-        if (isOutOfTime)
-        {
-            return ScoredMove{NULL_MOVE, 0};
-        }
     }
-    // add some variance during the game because when carl goes against other
-    // engines the same game often happens over and over again
+    // add some variance when choosing between equal moves
     ScoredMove bestMove = ScoredMove{bestMoves[rand() % bestMoves.size()], bestScore};
     printSearchInfo(getEpochMillis() - startMillis, depth, bestMove);
 
     return bestMove;
 }
 
-Move Search::searchByTime(const int millis)
+Move Search::searchByTime(const int msTargetElapsed)
 {
     long startTime = getEpochMillis();
-    endTime = startTime + millis;
 
     generator.genMoves();
     const int numMoves = generator.numMoves;
     if (numMoves == 1)
     {
-        printSearchTime(millis, startTime);
+        printSearchTime(msTargetElapsed, startTime);
         return generator.moveList[0];
     }
 
@@ -276,52 +259,43 @@ Move Search::searchByTime(const int millis)
     endTime = LLONG_MAX;
     ScoredMove best = searchByDepth(1);
 
-    endTime = startTime + msSearch;
+    endTime = startTime + msTargetElapsed;
     long lastSearchTime = 0;
-    while (++depth <= MAX_DEPTH)
+    for (int depth = 2; depth < MAX_DEPTH; ++depth)
     {
         // if we estimate the next search will take too much time
         if (endTime < getEpochMillis() + 7 * lastSearchTime)
         {
-            // give up and use the best move from the previous depth
             break;
         }
 
         long searchStartTime = getEpochMillis();
         const ScoredMove bestForDepth = searchByDepth(depth);
 
-        lastSearchTime = getEpochMillis() - searchStartTime;
-        // if we ran out of time while searching
-        if (bestForDepth.move == NULL_MOVE)
+        if (isOutOfTime)
         {
-            // give up and use the best move from the previous depth
             break;
         }
         // if we found a mating line while searching
         if (bestForDepth.score >= MAX_SCORE - MAX_DEPTH)
         {
-            // play the move right away
             return bestForDepth.move;
         }
 
+        lastSearchTime = getEpochMillis() - searchStartTime;
         best = bestForDepth;
     }
 
-    printSearchTime(millis, startTime);
-
+    printSearchTime(msTargetElapsed, startTime);
     return best.move;
 }
 
-Move Search::searchByTimeControl(
-        const int whiteRemaining,
-        const int blackRemaining,
-        const int whiteIncrement,
-        const int blackIncrement)
+Move Search::searchByTimeControl(const int msRemaining, const int msIncrement)
 {
-    int estimatedRemaining = whiteRemaining + whiteIncrement * 19;
-    int bestTime = estimatedRemaining / 20;
+    int estimatedRemaining = msRemaining + msIncrement * 19;
+    int msSearch = estimatedRemaining / 20;
 
-    return searchByTime(bestTime);
+    return searchByTime(msSearch);
 }
 
 void Search::printSearchInfo(
@@ -347,8 +321,8 @@ void Search::printSearchInfo(
 }
 
 void Search::printSearchTime(
-        const long targetElapsed,
+        const long msTargetElapsed,
         const long startTime)
 {
-    std::cout << "info string Target elapsed: " << targetElapsed << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
+    std::cout << "info string Target elapsed: " << msTargetElapsed << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
 }
