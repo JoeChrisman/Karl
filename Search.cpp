@@ -6,8 +6,6 @@
 #include "Notation.h"
 #include <iomanip>
 
-Search::Node Search::transpositions[TRANSPOSITION_TABLE_SIZE] = {};
-
 Search::Search(Position& position, Gen& generator)
 : position(position), generator(generator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
@@ -18,18 +16,6 @@ Search::Search(Position& position, Gen& generator)
     endTime = 0;
     isOutOfTime = false;
 
-    // initialize the transposition table
-    for (Node& node : transpositions)
-    {
-        node = Node{
-                0,
-                NULL_MOVE,
-                0,
-                NULL_SCORE,
-                -1};
-    }
-
-    // initialize the capture scores
     static constexpr Score attackerScores[13] = {
             0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
     };
@@ -48,13 +34,7 @@ Search::Search(Position& position, Gen& generator)
 template<bool isQuiescent>
 void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth)
 {
-    const Node& node = transpositions[position.hash % TRANSPOSITION_TABLE_SIZE];
-
     Move bestMove = NULL_MOVE;
-    if (node.hash == position.hash)
-    {
-        bestMove = node.bestMove;
-    }
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
     for (int i = moveNum; i < numMoves; i++)
@@ -70,14 +50,8 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
         // during the normal search
         else
         {
-            // if this move was the best in another search
-            if (move == bestMove)
-            {
-                // put this move before all other moves
-                score = 500;
-            }
-            // if this move is a primary killer move
-            else if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
+            // if this move is a killer move
+            if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
             {
                 // put killer moves after captures
                 score = 94;
@@ -167,33 +141,6 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
         return CONTEMPT;
     }
 
-    // access any previous searches we have cached
-    Node& node = transpositions[position.hash % TRANSPOSITION_TABLE_SIZE];
-    const bool isTransposition = node.hash == position.hash;
-    // if the current node is usable
-    if (isTransposition && node.depth >= depth)
-    {
-        // if this node has an exact score (principal variation or a leaf node)
-        if (node.scoreType == EXACT_SCORE)
-        {
-            // we can just use the score
-            return node.score;
-        }
-        // if this node failed low (never raised alpha)
-        if (node.scoreType == ALPHA_SCORE && node.score <= alpha)
-        {
-            // we can use the current lower bound
-            return alpha;
-        }
-            // if this node failed high (raised alpha and exceeded beta)
-        else if (node.scoreType == BETA_SCORE && node.score >= beta)
-        {
-            // we can use the current upper bound
-            return beta;
-        }
-    }
-
-    // if this node is a leaf node
     if (!depth)
     {
         // every few thousand leaf nodes
@@ -208,16 +155,7 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
             }
         }
 
-        // evaluate the node, but resolve all the captures first
-        const Score evaluation = quiescence(alpha, beta, color);
-        // remember the evaluation so we don't have to search this node again
-        node = Node{
-                position.hash,
-                NULL_MOVE,
-                evaluation,
-                EXACT_SCORE,
-                0};
-        return evaluation;
+        return quiescence(alpha, beta, color);
     }
 
     branchNodes++;
@@ -239,11 +177,6 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
         }
     }
 
-    // clear the current node in preparation for overwriting
-    node = {};
-    // this node has not reached alpha
-    node.scoreType = ALPHA_SCORE;
-
     Move moves[256];
     std::memcpy(moves, generator.moveList, sizeof generator.moveList);
     Move bestMove = moves[0];
@@ -258,9 +191,6 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
         // if the score raised alpha
         if (score > alpha)
         {
-            // this node is in the principal variation unless it exceeds beta
-            node.scoreType = EXACT_SCORE;
-
             alpha = score;
             bestMove = move;
             // if the score caused a beta cutoff
@@ -273,25 +203,11 @@ Score Search::negamax(const int color, const short depth, Score alpha, Score bet
                     killerMoves[depth][1] = killerMoves[depth][0];
                     killerMoves[depth][0] = move;
                 }
-                // remember this node caused a beta cutoff for later
-                node = Node{
-                    position.hash,
-                    bestMove,
-                    beta,
-                    BETA_SCORE,
-                    depth};
                 return beta;
             }
         }
     }
 
-    // remember this node is in the principal variation or if it caused an alpha cutoff
-    node = Node{
-            position.hash,
-            bestMove,
-            alpha,
-            node.scoreType,
-            depth};
     return alpha;
 }
 

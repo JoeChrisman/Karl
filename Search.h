@@ -8,8 +8,7 @@
 #include "Eval.h"
 #include "Gen.h"
 
-inline constexpr int MAX_DEPTH = 64;
-inline constexpr int TRANSPOSITION_TABLE_SIZE = 16777213;
+inline static constexpr int MAX_DEPTH = 64;
 
 struct ScoredMove
 {
@@ -60,27 +59,6 @@ private:
 
     Score captureScores[13][13];
     Move killerMoves[MAX_DEPTH][2];
-
-
-    enum ScoreType
-    {
-        NULL_SCORE,
-        EXACT_SCORE,
-        ALPHA_SCORE,
-        BETA_SCORE
-    };
-
-    struct Node
-    {
-        Hash hash;
-        Move bestMove;
-        Score score;
-        ScoreType scoreType;
-        short depth;
-    };
-
-    static Node transpositions[TRANSPOSITION_TABLE_SIZE];
-
 };
 
 #endif //KARL_SEARCH_H
