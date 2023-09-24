@@ -1,0 +1,40 @@
+Version: version 0.5 <BETA>
+Author: Joe Chrisman
+
+A field in angle braces, like "<field>", means that field is required
+A field in curly braces, like "{field}", means that field is optional
+A field in parentheses, like "(field)", means that field is an optional flag
+
+This is a list of all commands:
+    ~ "exit" or "quit" to exit the CLI
+    ~ "load {fen}" to load a position into the engine
+        ~ The default position is an empty board
+        ~ If you omit the FEN, the starting position for white will be loaded
+        ~ If you wish to play with black on the bottom, see the "flip" command
+    ~ "show" to show the current position
+    ~ "info" to show detailed information about the current position
+    ~ "search {time} {depth} <amount>" to start engine analysis
+        ~ If the {time} flag is present, <amount> is the number of milliseconds to search for
+        ~ If the {depth} flag is present, <amount> is the number of plies to search
+    ~ "who" to show who's turn it is
+    ~ "flip" to flip the board
+    ~ "pass" to switch turns without making a move
+    ~ "move <from><to>" to make a move
+        ~ The fields "<from>" and "<to>" describe the move in long algebraic notation
+        ~ "<from>" is where the piece is, "<to>" is where to move the piece
+        ~ For example, "move e2e4" would move the piece on e2 to e4
+        ~ To castle, use the king's starting and ending squares
+        ~ To promote, append the promotion type to the end of the move, such as "e7e8q"
+    ~ "moves" to view a list of legal moves in the current position
+    ~ "captures" to view a list of legal captures in the current position
+    ~ "perft (split) (suite) {min} {max}" to run a perft test
+        ~ A perft test is a test that tests the accuracy and performance of the move generator
+        ~ The field "{min}" is the lowest depth to search to
+        ~ The field "{max}" is the highest depth to search to
+        ~ All depths between "{min}" and "{max}" will be searched
+        ~ If "{max}" is omitted, only the "{min}" depth will be searched
+        ~ If "{max}" is omitted, and the "(split)" flag is present, split mode will be enabled
+        ~ Split mode only accepts one depth value and shows the number of leaf nodes after each move
+        ~ If "{max}" and "{min}" are omitted, and the "(suite)" flag is present, a test suite will be run
+    ~ "uci" to enter UCI mode
+    ~ "help" to see this manual

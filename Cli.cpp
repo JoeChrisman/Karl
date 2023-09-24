@@ -43,45 +43,13 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "help")
         {
-            std::cout << "\t~ This is the user manual for the Karl Chess Engine Command Line Interface\n";
-            std::cout << "\t~ Version: version " << VERSION << "\n";
-            std::cout << "\t~ Author: Joe Chrisman\n";
-            std::cout << "\t\t~ A field in angle braces, like \"<field>\", means that field is required\n";
-            std::cout << "\t\t~ A field in curly braces, like \"{field}\", means that field is optional\n";
-            std::cout << "\t\t~ A field in rounded braces, like \"(field)\", means that field is an optional flag\n";
-            std::cout << "\t\t~ This is a list of all commands\n\n";
-            std::cout << "\t~ \"exit\" or \"quit\" to exit the CLI\n";
-            std::cout << "\t~ \"load {fen}\" to load a position into the engine\n";
-            std::cout << "\t\t~ The default position is an empty board\n";
-            std::cout << "\t\t~ If you omit the FEN, the starting position for white will be loaded\n";
-            std::cout << "\t\t~ If you wish to play with black on the bottom, see the \"flip\" command\n";
-            std::cout << "\t~ \"show\" to show the current position\n";
-            std::cout << "\t~ \"info\" to show detailed information about the current position\n";
-            std::cout << "\t~ \"search {time} {depth} <amount>\" to start engine analysis\n";
-            std::cout << "\t\t~ \"If the {time} flag is present, <amount> is the number of milliseconds to search for\n";
-            std::cout << "\t\t~ \"If the {depth} flag is present, <amount> is the number of plies to search\n";
-            std::cout << "\t~ \"who\" to show who's turn it is\n";
-            std::cout << "\t~ \"flip\" to flip the board\n";
-            std::cout << "\t~ \"pass\" to switch turns without making a move\n";
-            std::cout << "\t~ \"move <from><to>\" to make a move\n";
-            std::cout << "\t\t~ The fields \"<from>\" and \"<to>\" describe the move in long algebraic notation\n";
-            std::cout << "\t\t~ \"<from>\" is where the piece is, \"<to>\" is where to move the piece\n";
-            std::cout << "\t\t~ For example, \"move e2e4\" would move the piece on e2 to e4\n";
-            std::cout << "\t\t~ To castle, use the king's starting and ending squares\n";
-            std::cout << "\t\t~ To promote, append the promotion type to the end of the move, such as \"e7e8q\"\n";
-            std::cout << "\t~ \"moves\" to view a list of legal moves in the current position\n";
-            std::cout << "\t~ \"captures\" to view a list of legal captures in the current position\n";
-            std::cout << "\t~ \"perft (split) (suite) {min} {max}\" to run a perft test\n";
-            std::cout << "\t\t~ A perft test is a test that tests the accuracy and performance of the move generator\n";
-            std::cout << "\t\t~ The field \"{min}\" is the lowest depth to search to\n";
-            std::cout << "\t\t~ The field \"{max}\" is the highest depth to search to\n";
-            std::cout << "\t\t~ All depths between \"{min}\" and \"{max}\" will be searched\n";
-            std::cout << "\t\t~ If \"{max}\" is omitted, only the \"{min}\" depth will be searched\n";
-            std::cout << "\t\t~ If \"{max}\" is omitted, and the \"(split)\" flag is present, split mode will be enabled\n";
-            std::cout << "\t\t~ split mode only accepts one depth value and shows the number of leaf nodes after each move\n";
-            std::cout << "\t\t~ If \"{max}\" and \"{min}\" are omitted, and the \"(suite)\" flag is present, a test suite will be run\n";
-            std::cout << "\t~ \"uci\" to enter UCI mode\n";
-            std::cout << "\t~ \"help\" to see this list of commands\n";
+            std::ifstream readme("../manual.txt");
+            std::string line = "";
+            while (std::getline(readme, line))
+            {
+                std::cout << line << "\n";
+            }
+
             showReady();
         }
         else if (command.substr(0, 4) == "load")
