@@ -271,8 +271,12 @@ Move Search::searchByTime(const int millis)
         return generator.moveList[0];
     }
 
-    int depth = 0;
-    ScoredMove best = {};
+    // start off by searching to a depth of 1 without a time restriction.
+    // therefore, we will always have a move to fall back on
+    endTime = LLONG_MAX;
+    ScoredMove best = searchByDepth(1);
+
+    endTime = startTime + msSearch;
     long lastSearchTime = 0;
     while (++depth <= MAX_DEPTH)
     {
