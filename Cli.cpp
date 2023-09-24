@@ -9,7 +9,7 @@
 #include "Notation.h"
 
 Cli::Cli(const Zobrist& zobrist, const Magics& magics)
-: zobrist(zobrist), magics(magics), position(zobrist), generator(position, magics), search(position, generator)
+: position(zobrist), generator(position, magics), search(position, generator)
 {
     isWhiteOnBottom = true;
 }
@@ -408,21 +408,15 @@ int Cli::runUci()
             else
             {
                 std::stringstream timeControls(command.substr(2, std::string::npos));
-                int whiteRemaining;
-                int blackRemaining;
-                int whiteIncrement;
-                int blackIncrement;
+                int msRemaining = 0;
+                int msIncrement = 0;
                 std::string consume; // get rid of flags sent in the command
-                timeControls >> consume >> whiteRemaining;
-                timeControls >> consume >> blackRemaining;
-                timeControls >> consume >> whiteIncrement;
-                timeControls >> consume >> blackIncrement;
+                timeControls >> consume >> msRemaining;
+                timeControls >> consume >> consume;
+                timeControls >> consume >> msIncrement;
+                timeControls >> consume >> consume;
 
-                best = search.searchByTimeControl(
-                        whiteRemaining,
-                        blackRemaining,
-                        whiteIncrement,
-                        blackIncrement);
+                best = search.searchByTimeControl(msRemaining, msIncrement);
             }
 
             std::cout << "bestmove " << moveToStr(best) << "\n";

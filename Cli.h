@@ -20,8 +20,6 @@ private:
     Position position;
     Search search;
     Gen generator;
-    const Magics& magics;
-    const Zobrist& zobrist;
 
     struct PerftInfo
     {

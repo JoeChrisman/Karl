@@ -56,7 +56,6 @@ public:
 
     Score materialScore;
     Score midgamePlacementScore;
-    Score endgamePlacementScore;
 
     short totalPlies;
     bool isWhiteToMove;
@@ -77,7 +76,7 @@ private:
     template<bool isWhite>
     void undoMove(const Move move, const Irreversibles& state);
 
-    inline void clear();
+    void clear();
 
 };
 

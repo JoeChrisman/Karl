@@ -14,9 +14,6 @@ Magics::Magics()
 
         cardinalMagics[square].magic = getMagicNumber(square, true);
         ordinalMagics[square].magic = getMagicNumber(square, false);
-
-        std::string percentComplete = std::to_string(100 * square / 63);
-        std::string indentation = std::string(3 - percentComplete.length(), ' ');
     }
 }
 

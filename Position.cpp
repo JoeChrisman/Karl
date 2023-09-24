@@ -20,7 +20,10 @@ Position::Position(const Zobrist& zobrist)
 
     materialScore = 0;
     midgamePlacementScore = 0;
-    endgamePlacementScore = 0;
+
+    isWhiteToMove = true;
+    totalPlies = 0;
+
     irreversibles = {};
 }
 
@@ -449,7 +452,6 @@ void Position::undoMove(const Move move, const Irreversibles& state)
     updateBitboards();
 }
 
-
 void Position::clear()
 {
     std::memset(bitboards, EMPTY_BOARD, sizeof(bitboards));
@@ -459,13 +461,12 @@ void Position::clear()
     hash = 0;
     materialScore = 0;
     midgamePlacementScore = 0;
-    endgamePlacementScore = 0;
     totalPlies = 0;
     isWhiteToMove = true;
     irreversibles = {};
 }
 
-inline void Position::updateBitboards()
+void Position::updateBitboards()
 {
     whitePieces = bitboards[WHITE_PAWN] |
                   bitboards[WHITE_KNIGHT] |
