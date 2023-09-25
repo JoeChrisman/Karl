@@ -54,7 +54,7 @@ ____  __.           ))   `\_) .__
         }
         else if (command.substr(0, 4) == "load")
         {
-            std::string fen = INITIAL_FEN;
+            std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";;
 
             if (command != "load")
             {
@@ -89,7 +89,6 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ Side to move     | " << sideToMove << "\n";
             std::cout << "\t~ En passant file  | " << enPassantFile << "\n";
             std::cout << "\t~ Castling flags   | 0x" << std::hex << castlingFlags << std::dec << "\n";
-            std::cout << "\t~ Material score   | " << position.materialScore << "\n";
             std::cout << "\t~ Total plies      | " << position.totalPlies << "\n";
             std::cout << "\t~ Reversible plies | " << position.irreversibles.reversiblePlies << "\n";
             std::cout << "\t~ =====================================\n";
@@ -309,7 +308,7 @@ ____  __.           ))   `\_) .__
 int Cli::runUci()
 {
     std::cout << std::flush;
-    std::cout << "id name Karl " << VERSION << "\n";
+    std::cout << "id name Karl\n";
     std::cout << "id author Joe Chrisman\n";
     std::cout << "uciok\n";
 
@@ -335,7 +334,7 @@ int Cli::runUci()
             size_t movesIndex = command.find("moves");
             if (command.substr(9, 8) == "startpos")
             {
-                position.loadFen(INITIAL_FEN);
+                position.loadFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
             }
             else
             {
@@ -500,7 +499,6 @@ void Cli::runPerftSuite()
         }
 
         const Hash hashBefore = position.hash;
-        const Score materialScoreBefore = position.materialScore;
         const Score midgamePlacementScoreBefore = position.midgamePlacementScore;
 
         std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
@@ -516,12 +514,6 @@ void Cli::runPerftSuite()
                 std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect hash\n";
                 std::cout << "\t~ Expected hash to be " << std::hex << "0x" << hashBefore;
                 std::cout << ", but found " << "0x" << position.hash << std::dec << "\n";
-                failures++;
-            }
-            else if (position.materialScore != materialScoreBefore)
-            {
-                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect material score\n";
-                std::cout << "\t~ Expected score to be " << materialScoreBefore << ", but found " << position.materialScore << "\n";
                 failures++;
             }
             else if (position.midgamePlacementScore != midgamePlacementScoreBefore)

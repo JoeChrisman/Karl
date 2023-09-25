@@ -6,13 +6,20 @@
 #define KARL_EVAL_H
 
 #include "Defs.h"
+#include "Position.h"
+
+// forward definition
+class Position;
 
 typedef int Score;
 
-inline Score evaluate(const Score material, const Score midgamePlacement)
-{
-    return material + midgamePlacement;
-}
+Score evaluate(const Position& position);
+
+template<bool isWhite>
+Score countMaterial(const Position& position);
+
+inline int getKingActivityBonus(const int kingRank, const int kingFile);
+inline int getKingDistanceBonus(const int whiteKingRank, const int whiteKingFile, const int blackKingRank, const int blackKingFile);
 
 inline constexpr Score TIMEOUT = INT_MIN;
 inline constexpr Score MAX_SCORE = 30000;

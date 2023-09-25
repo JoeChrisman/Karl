@@ -89,7 +89,7 @@ bool Search::isRepetition()
 Score Search::quiescence(Score alpha, const Score beta, const int color)
 {
     quietNodes++;
-    Score score = evaluate(position.materialScore, position.midgamePlacementScore) * color;
+    Score score = evaluate(position) * color;
     if (score >= beta)
     {
         return beta;
@@ -217,7 +217,7 @@ ScoredMove Search::searchByDepth(const int depth)
         Move move = moves[i];
 
         position.makeMove(move);
-        Score score = -negamax(position.isWhiteToMove ? WHITE : BLACK, depth, MIN_SCORE, MAX_SCORE);
+        Score score = -negamax(position.isWhiteToMove ? 1 : -1, depth, MIN_SCORE, MAX_SCORE);
         position.unMakeMove(move, state);
 
         if (isOutOfTime)

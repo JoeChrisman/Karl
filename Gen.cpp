@@ -717,5 +717,5 @@ void Gen::genCaptures()
 
 bool Gen::isInCheck(const int color)
 {
-    return ~safeSquares & position.bitboards[color == WHITE ? WHITE_KING : BLACK_KING];
+    return ~safeSquares & position.bitboards[color == 1 ? WHITE_KING : BLACK_KING];
 }
