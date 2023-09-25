@@ -339,10 +339,10 @@ int Cli::runUci()
             }
             else
             {
-                if (!position.loadFen(command.substr(9, movesIndex)))
+                if (!position.loadFen(command.substr(12, (movesIndex == std::string::npos) ? movesIndex : movesIndex - 12)))
                 {
                     // our UCI client gave us an invalid FEN string
-                    // just ignore it and hope everything will be okay
+                    // just ignore it and hope everything will be okay (it won't)
                     continue;
                 }
             }
