@@ -8,7 +8,7 @@
 inline constexpr Score MAX_MATERIAL = 8240;
 inline constexpr int KING_ACTIVITY_WEIGHT = 100;
 
-Evaluator::Evaluator(Position& position, Gen& moveGen) :
+Evaluator::Evaluator(Position& position, MoveGen& moveGen) :
     position(position), moveGen(moveGen)
 {
 }

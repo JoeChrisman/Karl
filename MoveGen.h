@@ -2,17 +2,17 @@
 // Created by Joe Chrisman on 4/6/23.
 //
 
-#ifndef KARL_GEN_H
-#define KARL_GEN_H
+#ifndef KARL_MOVEGEN_H
+#define KARL_MOVEGEN_H
 
 #include "Position.h"
 #include "Magics.h"
 #include "Moves.h"
 
-class Gen
+class MoveGen
 {
 public:
-    Gen(Position& position, const Magics& magics);
+    MoveGen(Position& position, const Magics& magics);
 
     void genMoves();
     void genCaptures();
@@ -81,4 +81,4 @@ private:
 };
 
 
-#endif //KARL_GEN_H
+#endif //KARL_MOVEGEN_H

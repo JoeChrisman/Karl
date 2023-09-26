@@ -9,8 +9,8 @@
 #include "Position.h"
 // forward declaration
 class Position;
-#include "Gen.h"
-class Gen;
+#include "MoveGen.h"
+class MoveGen;
 
 typedef int Score;
 inline constexpr Score TIMEOUT = INT_MIN;
@@ -21,7 +21,7 @@ inline constexpr Score CONTEMPT = 250;
 class Evaluator
 {
 public:
-    Evaluator(Position& position, Gen& gen);
+    Evaluator(Position& position, MoveGen& gen);
     Score evaluate();
 
 private:
@@ -31,7 +31,7 @@ private:
     Score countMaterial();
 
     Position& position;
-    Gen& moveGen;
+    MoveGen& moveGen;
 };
 
 inline constexpr Score PIECE_SCORES[13] = {

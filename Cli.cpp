@@ -8,7 +8,7 @@
 #include "Cli.h"
 
 Cli::Cli(const Zobrist& zobrist, const Magics& magics)
-: position(zobrist), generator(position, magics), evaluator(position, generator), search(position, generator, evaluator)
+: position(zobrist), moveGen(position, magics), evaluator(position, moveGen), search(position, moveGen, evaluator)
 {
     isWhiteOnBottom = true;
 }
@@ -146,11 +146,11 @@ ____  __.           ))   `\_) .__
         else if (command.substr(0, 8) == "makemove")
         {
             std::string notation = command.substr(9, std::string::npos);
-            generator.genMoves();
+            moveGen.genMoves();
             Move legalMove = NULL_MOVE;
-            for (int i = 0; i < generator.numMoves; i++)
+            for (int i = 0; i < moveGen.numMoves; i++)
             {
-                Move move = generator.moveList[i];
+                Move move = moveGen.moveList[i];
                 if (moveToStr(move) == notation)
                 {
                     legalMove = move;
@@ -171,21 +171,21 @@ ____  __.           ))   `\_) .__
         }
         else if (command == "moves")
         {
-            generator.genMoves();
-            std::cout << "~ There are " << generator.numMoves << " moves\n";
-            for (int i = 0; i < generator.numMoves; i++)
+            moveGen.genMoves();
+            std::cout << "~ There are " << moveGen.numMoves << " moves\n";
+            for (int i = 0; i < moveGen.numMoves; i++)
             {
-                std::cout << "\t~ " << moveToStr(generator.moveList[i]) << "\n";
+                std::cout << "\t~ " << moveToStr(moveGen.moveList[i]) << "\n";
             }
             showReady();
         }
         else if (command == "captures")
         {
-            generator.genCaptures();
-            std::cout << "~ There are " << generator.numMoves << " captures\n";
-            for (int i = 0; i < generator.numMoves; i++)
+            moveGen.genCaptures();
+            std::cout << "~ There are " << moveGen.numMoves << " captures\n";
+            for (int i = 0; i < moveGen.numMoves; i++)
             {
-                std::cout << "\t~ " << moveToStr(generator.moveList[i]) << "\n";
+                std::cout << "\t~ " << moveToStr(moveGen.moveList[i]) << "\n";
             }
             showReady();
         }
@@ -350,8 +350,8 @@ int Cli::runUci()
                 std::string moveStr;
                 while (moves >> moveStr)
                 {
-                    generator.genMoves();
-                    for (const Move move : generator.moveList)
+                    moveGen.genMoves();
+                    for (const Move move : moveGen.moveList)
                     {
                         if (moveStr == moveToStr(move))
                         {
@@ -419,10 +419,10 @@ void Cli::perft(int depth, PerftInfo &info, int splitDepth)
         return;
     }
     Position::Irreversibles state = position.irreversibles;
-    generator.genMoves();
+    moveGen.genMoves();
     Move moves[256];
-    std::memcpy(moves, generator.moveList, sizeof(Gen::moveList));
-    int numMoves = generator.numMoves;
+    std::memcpy(moves, moveGen.moveList, sizeof(MoveGen::moveList));
+    int numMoves = moveGen.numMoves;
     for (int i = 0; i < numMoves; i++)
     {
         Move move = moves[i];

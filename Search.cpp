@@ -6,8 +6,8 @@
 #include "Notation.h"
 #include <iomanip>
 
-Search::Search(Position& position, Gen& generator, Evaluator& evaluator)
-: position(position), generator(generator), evaluator(evaluator), captureScores{0}, killerMoves{{NULL_MOVE}}
+Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
+: position(position), moveGen(moveGen), evaluator(evaluator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
     branchNodes = 0;
     leafNodes = 0;
@@ -99,10 +99,10 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
         alpha = score;
     }
 
-    generator.genCaptures();
+    moveGen.genCaptures();
     Move captures[256];
-    std::memcpy(captures, generator.moveList, sizeof generator.moveList);
-    const int numCaptures = generator.numMoves;
+    std::memcpy(captures, moveGen.moveList, sizeof moveGen.moveList);
+    const int numCaptures = moveGen.numMoves;
     const Position::Irreversibles state = position.irreversibles;
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
     {
@@ -148,11 +148,11 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
     }
 
     branchNodes++;
-    generator.genMoves();
-    const int numMoves = generator.numMoves;
+    moveGen.genMoves();
+    const int numMoves = moveGen.numMoves;
     if (numMoves == 0)
     {
-        if (generator.isInCheck(color))
+        if (moveGen.isInCheck(color))
         {
             // return a checkmate score, and lower the score the farther the checkmate is
             return MIN_SCORE + MAX_DEPTH - depth;
@@ -165,7 +165,7 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
     }
 
     Move moves[256];
-    std::memcpy(moves, generator.moveList, sizeof generator.moveList);
+    std::memcpy(moves, moveGen.moveList, sizeof moveGen.moveList);
     const Position::Irreversibles state = position.irreversibles;
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
@@ -207,10 +207,10 @@ ScoredMove Search::searchByDepth(const int depth)
     Score bestScore = MIN_SCORE;
     std::vector<Move> bestMoves;
 
-    generator.genMoves();
-    const int numMoves = generator.numMoves;
+    moveGen.genMoves();
+    const int numMoves = moveGen.numMoves;
     Move moves[256];
-    std::memcpy(moves, generator.moveList, sizeof generator.moveList);
+    std::memcpy(moves, moveGen.moveList, sizeof moveGen.moveList);
     const Position::Irreversibles state = position.irreversibles;
     for (int i = 0; i < numMoves; i++)
     {
@@ -246,12 +246,12 @@ Move Search::searchByTime(const int msTargetElapsed)
 {
     long startTime = getEpochMillis();
 
-    generator.genMoves();
-    const int numMoves = generator.numMoves;
+    moveGen.genMoves();
+    const int numMoves = moveGen.numMoves;
     if (numMoves == 1)
     {
         printSearchTime(msTargetElapsed, startTime);
-        return generator.moveList[0];
+        return moveGen.moveList[0];
     }
 
     // start off by searching to a depth of 1 without a time restriction.

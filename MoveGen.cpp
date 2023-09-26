@@ -2,10 +2,10 @@
 // Created by Joe Chrisman on 4/6/23.
 //
 
-#include "Gen.h"
+#include "MoveGen.h"
 
 
-Gen::Gen(Position& position, const Magics& magics)
+MoveGen::MoveGen(Position& position, const Magics& magics)
 : magics(magics), position(position), moveList{0}, knightMoves{0}, kingMoves{0}
 {
     std::memset(moveList, NULL_MOVE, sizeof(moveList));
@@ -19,7 +19,7 @@ Gen::Gen(Position& position, const Magics& magics)
     ordinalPins = EMPTY_BOARD;
 }
 
-void Gen::initKnightMoves()
+void MoveGen::initKnightMoves()
 {
     for (Square square = A8; square <= H1; square++)
     {
@@ -73,7 +73,7 @@ void Gen::initKnightMoves()
     }
 }
 
-void Gen::initKingMoves()
+void MoveGen::initKingMoves()
 {
     for (Square square = A8; square <= H1; square++)
     {
@@ -115,7 +115,7 @@ void Gen::initKingMoves()
 }
 
 template<bool isCardinal>
-U64 Gen::getSlidingMoves(Square from)
+U64 MoveGen::getSlidingMoves(Square from)
 {
     if constexpr (isCardinal)
     {
@@ -132,7 +132,7 @@ U64 Gen::getSlidingMoves(Square from)
 }
 
 template<bool isWhite>
-void Gen::genPromotions(const Square from, const Square to, const Piece captured)
+void MoveGen::genPromotions(const Square from, const Square to, const Piece captured)
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
 
@@ -145,7 +145,7 @@ void Gen::genPromotions(const Square from, const Square to, const Piece captured
 }
 
 template<bool isWhite>
-bool Gen::isEnPassantHorizontallyPinned(const Square from, const Square to)
+bool MoveGen::isEnPassantHorizontallyPinned(const Square from, const Square to)
 {
     static constexpr U64 enPassantRank = RANK_MASKS[isWhite ? FIFTH_RANK : FOURTH_RANK];
     const U64 captured = getBoard(isWhite ? south(to) : north(to));
@@ -165,7 +165,7 @@ bool Gen::isEnPassantHorizontallyPinned(const Square from, const Square to)
 }
 
 template<bool isWhite, bool isEast>
-U64 Gen::getPawnCaptures(const U64 pawns)
+U64 MoveGen::getPawnCaptures(const U64 pawns)
 {
     static constexpr U64 eastCaptureMask = ~FILE_MASKS[A_FILE];
     static constexpr U64 westCaptureMask = ~FILE_MASKS[H_FILE];
@@ -206,7 +206,7 @@ U64 Gen::getPawnCaptures(const U64 pawns)
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genPawnMoves()
+void MoveGen::genPawnMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
     static constexpr U64 beforePromotionRank = RANK_MASKS[isWhite ? SEVENTH_RANK : SECOND_RANK];
@@ -340,7 +340,7 @@ void Gen::genPawnMoves()
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genKnightMoves()
+void MoveGen::genKnightMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_KNIGHT : BLACK_KNIGHT;
 
@@ -369,7 +369,7 @@ void Gen::genKnightMoves()
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genBishopMoves()
+void MoveGen::genBishopMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_BISHOP : BLACK_BISHOP;
 
@@ -400,7 +400,7 @@ void Gen::genBishopMoves()
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genRookMoves()
+void MoveGen::genRookMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_ROOK : BLACK_ROOK;
 
@@ -431,7 +431,7 @@ void Gen::genRookMoves()
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genQueenMoves()
+void MoveGen::genQueenMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_QUEEN : BLACK_QUEEN;
     U64 queens = position.bitboards[pieceMoving];
@@ -474,7 +474,7 @@ void Gen::genQueenMoves()
 }
 
 template<bool isWhite, bool quiets>
-void Gen::genKingMoves()
+void MoveGen::genKingMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_KING : BLACK_KING;
 
@@ -525,7 +525,7 @@ void Gen::genKingMoves()
 }
 
 template<bool isWhite>
-void Gen::updateSafeSquares()
+void MoveGen::updateSafeSquares()
 {
     U64 attackedSquares = EMPTY_BOARD;
 
@@ -567,7 +567,7 @@ void Gen::updateSafeSquares()
 }
 
 template<bool isWhite>
-void Gen::updateResolverSquares()
+void MoveGen::updateResolverSquares()
 {
     const Square king = getSquare(position.bitboards[isWhite ? WHITE_KING : BLACK_KING]);
 
@@ -621,7 +621,7 @@ void Gen::updateResolverSquares()
 }
 
 template<bool isWhite, bool isCardinal>
-void Gen::updatePins()
+void MoveGen::updatePins()
 {
     if constexpr (isCardinal)
     {
@@ -673,7 +673,7 @@ void Gen::updatePins()
 
 // generate fully legal moves
 template<bool isWhite, bool quiets>
-void Gen::genLegalMoves()
+void MoveGen::genLegalMoves()
 {
     numMoves = 0;
 
@@ -691,7 +691,7 @@ void Gen::genLegalMoves()
     genQueenMoves<isWhite, quiets>();
 }
 
-void Gen::genMoves()
+void MoveGen::genMoves()
 {
     if (position.isWhiteToMove)
     {
@@ -703,7 +703,7 @@ void Gen::genMoves()
     }
 }
 
-void Gen::genCaptures()
+void MoveGen::genCaptures()
 {
     if (position.isWhiteToMove)
     {
@@ -715,7 +715,7 @@ void Gen::genCaptures()
     }
 }
 
-bool Gen::isInCheck(const int color)
+bool MoveGen::isInCheck(const int color)
 {
     return ~safeSquares & position.bitboards[color == 1 ? WHITE_KING : BLACK_KING];
 }

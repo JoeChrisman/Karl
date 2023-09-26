@@ -21,7 +21,7 @@ private:
     Evaluator evaluator;
     Position position;
     Search search;
-    Gen generator;
+    MoveGen moveGen;
 
     struct PerftInfo
     {

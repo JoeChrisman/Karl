@@ -6,7 +6,7 @@
 #define KARL_SEARCH_H
 
 #include "Eval.h"
-#include "Gen.h"
+#include "MoveGen.h"
 
 inline constexpr int MAX_DEPTH = 64;
 
@@ -19,7 +19,7 @@ struct ScoredMove
 class Search
 {
 public:
-    Search(Position& position, Gen& generator, Evaluator& evaluator);
+    Search(Position& position, MoveGen& moveGen, Evaluator& evaluator);
 
     ScoredMove searchByDepth(const int depth);
     Move searchByTime(const int msTargetElapsed);
@@ -28,7 +28,7 @@ public:
 private:
     Evaluator& evaluator;
     Position& position;
-    Gen& generator;
+    MoveGen& moveGen;
 
     Score quiescence(Score alpha, const Score beta, const int color);
     Score negamax(const int color, const int depth, Score alpha, Score beta);
