@@ -6,8 +6,8 @@
 #include "Notation.h"
 #include <iomanip>
 
-Search::Search(Position& position, Gen& generator)
-: position(position), generator(generator), captureScores{0}, killerMoves{{NULL_MOVE}}
+Search::Search(Position& position, Gen& generator, Evaluator& evaluator)
+: position(position), generator(generator), evaluator(evaluator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
     branchNodes = 0;
     leafNodes = 0;
@@ -89,7 +89,7 @@ bool Search::isRepetition()
 Score Search::quiescence(Score alpha, const Score beta, const int color)
 {
     quietNodes++;
-    Score score = evaluate(position) * color;
+    Score score = evaluator.evaluate() * color;
     if (score >= beta)
     {
         return beta;

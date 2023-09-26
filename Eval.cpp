@@ -8,10 +8,15 @@
 inline constexpr Score MAX_MATERIAL = 8240;
 inline constexpr int KING_ACTIVITY_WEIGHT = 100;
 
-Score evaluate(const Position& position)
+Evaluator::Evaluator(Position& position, Gen& moveGen) :
+    position(position), moveGen(moveGen)
 {
-    const Score whiteMaterial = countMaterial<true>(position);
-    const Score blackMaterial = countMaterial<false>(position);
+}
+
+Score Evaluator::evaluate()
+{
+    const Score whiteMaterial = countMaterial<true>();
+    const Score blackMaterial = countMaterial<false>();
 
     const Score advantage = whiteMaterial - blackMaterial + position.midgamePlacementScore;
 
@@ -38,7 +43,7 @@ Score evaluate(const Position& position)
 }
 
 template<bool isWhite>
-Score countMaterial(const Position& position)
+Score Evaluator::countMaterial()
 {
     Score material = 0;
 
@@ -51,7 +56,7 @@ Score countMaterial(const Position& position)
     return std::abs(material);
 }
 
-inline int getKingActivityBonus(const int kingRank, const int kingFile)
+inline int Evaluator::getKingActivityBonus(const int kingRank, const int kingFile)
 {
     const int centerRankDistance = std::max(3 - kingRank, kingRank - 4);
     const int centerFileDistance = std::max(3 - kingFile, kingFile - 4);

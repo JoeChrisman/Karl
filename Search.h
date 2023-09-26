@@ -19,13 +19,14 @@ struct ScoredMove
 class Search
 {
 public:
-    Search(Position& position, Gen& generator);
+    Search(Position& position, Gen& generator, Evaluator& evaluator);
 
     ScoredMove searchByDepth(const int depth);
     Move searchByTime(const int msTargetElapsed);
     Move searchByTimeControl(const int msRemaining, const int msIncrement);
 
 private:
+    Evaluator& evaluator;
     Position& position;
     Gen& generator;
 

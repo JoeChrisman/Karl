@@ -6,10 +6,9 @@
 #include <sstream>
 #include <fstream>
 #include "Cli.h"
-#include "Notation.h"
 
 Cli::Cli(const Zobrist& zobrist, const Magics& magics)
-: position(zobrist), generator(position, magics), search(position, generator)
+: position(zobrist), generator(position, magics), evaluator(position, generator), search(position, generator, evaluator)
 {
     isWhiteOnBottom = true;
 }

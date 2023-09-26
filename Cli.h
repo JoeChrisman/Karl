@@ -6,6 +6,7 @@
 #define KARL_CLI_H
 
 #include "Search.h"
+#include "Notation.h"
 
 class Cli
 {
@@ -17,6 +18,7 @@ public:
 private:
     bool isWhiteOnBottom;
 
+    Evaluator evaluator;
     Position position;
     Search search;
     Gen generator;

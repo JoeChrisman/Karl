@@ -7,6 +7,7 @@
 
 #include "Position.h"
 #include "Magics.h"
+#include "Moves.h"
 
 class Gen
 {

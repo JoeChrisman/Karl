@@ -7,24 +7,32 @@
 
 #include "Defs.h"
 #include "Position.h"
-
-// forward definition
+// forward declaration
 class Position;
+#include "Gen.h"
+class Gen;
 
 typedef int Score;
-
-Score evaluate(const Position& position);
-
-template<bool isWhite>
-Score countMaterial(const Position& position);
-
-inline int getKingActivityBonus(const int kingRank, const int kingFile);
-inline int getKingDistanceBonus(const int whiteKingRank, const int whiteKingFile, const int blackKingRank, const int blackKingFile);
-
 inline constexpr Score TIMEOUT = INT_MIN;
 inline constexpr Score MAX_SCORE = 30000;
 inline constexpr Score MIN_SCORE = -30000;
 inline constexpr Score CONTEMPT = 250;
+
+class Evaluator
+{
+public:
+    Evaluator(Position& position, Gen& gen);
+    Score evaluate();
+
+private:
+    int getKingActivityBonus(const int kingRank, const int kingFile);
+
+    template<bool isWhite>
+    Score countMaterial();
+
+    Position& position;
+    Gen& moveGen;
+};
 
 inline constexpr Score PIECE_SCORES[13] = {
         0,    // NULL_PIECE
