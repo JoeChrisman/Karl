@@ -93,6 +93,11 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ =====================================\n";
             showReady();
         }
+        else if (command == "evaluate")
+        {
+            std::cout << evaluator.evaluate() << "\n";
+            showReady();
+        }
         else if (command.substr(0, 6) == "search")
         {
             if (command.substr(7, 4) == "time")

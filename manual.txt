@@ -13,6 +13,7 @@ This is a list of all commands:
         ~ If you wish to play with black on the bottom, see the "flip" command
     ~ "show" to show the current position
     ~ "info" to show detailed information about the current position
+    ~ "evaluate" to show the evaluation of the current position
     ~ "search {time} {depth} <amount>" to start engine analysis
         ~ If the {time} flag is present, <amount> is the number of milliseconds to search for
         ~ If the {depth} flag is present, <amount> is the number of plies to search
