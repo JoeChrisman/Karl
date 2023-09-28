@@ -382,10 +382,20 @@ int Cli::runUci()
                 int msRemaining = 0;
                 int msIncrement = 0;
                 std::string consume; // get rid of flags sent in the command
-                timeControls >> consume >> msRemaining;
-                timeControls >> consume >> consume;
-                timeControls >> consume >> msIncrement;
-                timeControls >> consume >> consume;
+                if (position.isWhiteToMove)
+                {
+                    timeControls >> consume >> msRemaining;
+                    timeControls >> consume >> consume;
+                    timeControls >> consume >> msIncrement;
+                    timeControls >> consume >> consume;
+                }
+                else
+                {
+                    timeControls >> consume >> consume;
+                    timeControls >> consume >> msRemaining;
+                    timeControls >> consume >> consume;
+                    timeControls >> consume >> msIncrement;
+                }
 
                 best = search.searchByTimeControl(msRemaining, msIncrement);
             }
