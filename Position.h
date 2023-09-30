@@ -54,7 +54,8 @@ public:
     U64 whiteOrEmpty;
     U64 blackOrEmpty;
 
-    int midgamePlacementScore;
+    int placementScore;
+    int materialScore;
 
     short totalPlies;
     bool isWhiteToMove;

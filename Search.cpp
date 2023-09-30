@@ -34,7 +34,6 @@ Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
 template<bool isQuiescent>
 void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth)
 {
-    Move bestMove = NULL_MOVE;
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
     for (int i = moveNum; i < numMoves; i++)
@@ -67,7 +66,7 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
         }
     }
 
-    bestMove = moves[bestMoveIndex];
+    Move bestMove = moves[bestMoveIndex];
     moves[bestMoveIndex] = moves[moveNum];
     moves[moveNum] = bestMove;
 }

@@ -5,9 +5,6 @@
 #include <algorithm>
 #include "Eval.h"
 
-inline constexpr Score MAX_MATERIAL = 8240;
-inline constexpr int KING_ACTIVITY_WEIGHT = 100;
-
 Evaluator::Evaluator(Position& position, MoveGen& moveGen) :
     position(position), moveGen(moveGen)
 {
@@ -15,51 +12,31 @@ Evaluator::Evaluator(Position& position, MoveGen& moveGen) :
 
 Score Evaluator::evaluate()
 {
-    const Score whiteMaterial = countMaterial<true>();
-    const Score blackMaterial = countMaterial<false>();
+    Score whiteAdvantage = position.materialScore + position.placementScore;
 
-    const Score advantage = whiteMaterial - blackMaterial + position.midgamePlacementScore;
+    const float openingWeight = getOpeningWeight();
+    const float endgameWeight = 1.0f - openingWeight;
 
     const Square whiteKing = getSquare(position.bitboards[WHITE_KING]);
     const Square blackKing = getSquare(position.bitboards[BLACK_KING]);
-    const int whiteKingRank = getRank(whiteKing);
-    const int whiteKingFile = getFile(whiteKing);
-    const int blackKingRank = getRank(blackKing);
-    const int blackKingFile = getFile(blackKing);
 
-    const int whiteKingActivityBonus = getKingActivityBonus(whiteKingRank, whiteKingFile);
-    const int blackKingActivityBonus = getKingActivityBonus(blackKingRank, blackKingFile);
+    const Score whiteKingActivityAdvantage = static_cast<Score>(
+            static_cast<float>(KING_ACTIVITY_SCORES[whiteKing] - KING_ACTIVITY_SCORES[blackKing]) * endgameWeight);
 
-    const int kingActivityBonus = (whiteKingActivityBonus - blackKingActivityBonus) * KING_ACTIVITY_WEIGHT;
+    const Score whiteKingSafetyAdvantage = static_cast<Score>(
+            static_cast<float>(WHITE_KING_SAFETY_SCORES[whiteKing] - BLACK_KING_SAFETY_SCORES[blackKing]) * openingWeight);
 
-    const Score totalMaterial = whiteMaterial + blackMaterial;
-
-    const float materialLost = std::max(0.0f, static_cast<float>(MAX_MATERIAL - totalMaterial));
-    const float percentageLost = materialLost / MAX_MATERIAL;
-    const float endgameWeight = percentageLost * percentageLost;
-
-    const Score endgameScore = static_cast<Score>(static_cast<float>(kingActivityBonus) * endgameWeight);
-    return advantage + endgameScore;
+    return whiteAdvantage + whiteKingActivityAdvantage + whiteKingSafetyAdvantage;
 }
 
-template<bool isWhite>
-Score Evaluator::countMaterial()
+float Evaluator::getOpeningWeight()
 {
-    Score material = 0;
-
-    Piece piece = isWhite ? WHITE_PAWN : BLACK_PAWN;
-    const Piece highPiece = isWhite ? WHITE_QUEEN : BLACK_QUEEN;
-    for (; piece <= highPiece; ++piece)
-    {
-        material += getNumPieces(position.bitboards[piece]) * PIECE_SCORES[piece];
-    }
-    return std::abs(material);
+    int knights = 4 - getNumPieces(position.bitboards[WHITE_KNIGHT] | position.bitboards[BLACK_KNIGHT]);
+    int bishops = 4 - getNumPieces(position.bitboards[WHITE_BISHOP] | position.bitboards[BLACK_BISHOP]);
+    int rooks = 8 - getNumPieces(position.bitboards[WHITE_ROOK] | position.bitboards[BLACK_ROOK]) * 2;
+    int queens = 16 - getNumPieces(position.bitboards[WHITE_QUEEN] | position.bitboards[BLACK_QUEEN]) * 8;
+    return std::min(1.0f, static_cast<float>(32 - knights - bishops - rooks - queens) / 32.0f);
 }
 
-inline int Evaluator::getKingActivityBonus(const int kingRank, const int kingFile)
-{
-    const int centerRankDistance = std::max(3 - kingRank, kingRank - 4);
-    const int centerFileDistance = std::max(3 - kingFile, kingFile - 4);
-    return 6 - (centerRankDistance + centerFileDistance);
-}
+
 

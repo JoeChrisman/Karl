@@ -88,6 +88,8 @@ ____  __.           ))   `\_) .__
             std::cout << "\t~ Side to move     | " << sideToMove << "\n";
             std::cout << "\t~ En passant file  | " << enPassantFile << "\n";
             std::cout << "\t~ Castling flags   | 0x" << std::hex << castlingFlags << std::dec << "\n";
+            std::cout << "\t~ Material score   | " << position.materialScore << "\n";
+            std::cout << "\t~ Placement score   | " << position.placementScore << "\n";
             std::cout << "\t~ Total plies      | " << position.totalPlies << "\n";
             std::cout << "\t~ Reversible plies | " << position.irreversibles.reversiblePlies << "\n";
             std::cout << "\t~ =====================================\n";
@@ -513,7 +515,8 @@ void Cli::runPerftSuite()
         }
 
         const Hash hashBefore = position.hash;
-        const Score midgamePlacementScoreBefore = position.midgamePlacementScore;
+        const Score placementScoreBefore = position.placementScore;
+        const Score materialScoreBefore = position.materialScore;
 
         std::cout << "~ Running perft unit tests on position " << testContents[0] << "\n";
         // the rest of the strings are depths and node counts
@@ -530,11 +533,16 @@ void Cli::runPerftSuite()
                 std::cout << ", but found " << "0x" << position.hash << std::dec << "\n";
                 failures++;
             }
-            else if (position.midgamePlacementScore != midgamePlacementScoreBefore)
+            else if (position.placementScore != placementScoreBefore)
             {
                 std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect midgame placement score\n";
-                std::cout << "\t~ Expected score to be " << midgamePlacementScoreBefore << ", but found " << position.midgamePlacementScore << "\n";
+                std::cout << "\t~ Expected score to be " << placementScoreBefore << ", but found " << position.placementScore << "\n";
                 failures++;
+            }
+            else if (position.materialScore != materialScoreBefore)
+            {
+                std::cout << "~ [FAIL] Perft unit test at depth " << depth << " failed. Incorrect material score\n";
+                std::cout << "\t~ Expected score to be " << materialScoreBefore << ", but found " << position.materialScore << "\n";
             }
             else if (info.nodes == nodes)
             {
