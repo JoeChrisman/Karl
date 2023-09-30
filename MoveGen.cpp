@@ -147,7 +147,7 @@ void MoveGen::genPromotions(const Square from, const Square to, const Piece capt
 template<bool isWhite>
 bool MoveGen::isEnPassantHorizontallyPinned(const Square from, const Square to)
 {
-    static constexpr U64 enPassantRank = RANK_MASKS[isWhite ? FIFTH_RANK : FOURTH_RANK];
+    static constexpr U64 enPassantRank = RANKS[isWhite ? FIFTH_RANK : FOURTH_RANK];
     const U64 captured = getBoard(isWhite ? south(to) : north(to));
 
     const U64 horizontalAttackerMask =
@@ -167,8 +167,8 @@ bool MoveGen::isEnPassantHorizontallyPinned(const Square from, const Square to)
 template<bool isWhite, bool isEast>
 U64 MoveGen::getPawnCaptures(const U64 pawns)
 {
-    static constexpr U64 eastCaptureMask = ~FILE_MASKS[A_FILE];
-    static constexpr U64 westCaptureMask = ~FILE_MASKS[H_FILE];
+    static constexpr U64 eastCaptureMask = ~FILES[A_FILE];
+    static constexpr U64 westCaptureMask = ~FILES[H_FILE];
     if constexpr (isWhite)
     {
         if constexpr (isEast)
@@ -209,8 +209,8 @@ template<bool isWhite, bool quiets>
 void MoveGen::genPawnMoves()
 {
     static constexpr Piece pieceMoving = isWhite ? WHITE_PAWN : BLACK_PAWN;
-    static constexpr U64 beforePromotionRank = RANK_MASKS[isWhite ? SEVENTH_RANK : SECOND_RANK];
-    static constexpr U64 promotionRank = RANK_MASKS[isWhite ? EIGHTH_RANK : FIRST_RANK];
+    static constexpr U64 beforePromotionRank = RANKS[isWhite ? SEVENTH_RANK : SECOND_RANK];
+    static constexpr U64 promotionRank = RANKS[isWhite ? EIGHTH_RANK : FIRST_RANK];
 
     const U64 pawns = position.bitboards[pieceMoving];
     const U64 unpinnedPawns = pawns & ~(cardinalPins | ordinalPins);
@@ -271,12 +271,12 @@ void MoveGen::genPawnMoves()
     const int enPassantFile = position.irreversibles.enPassantFile;
     if (enPassantFile > -1)
     {
-        static constexpr U64 eastCaptureMask = ~FILE_MASKS[A_FILE];
-        static constexpr U64 westCaptureMask = ~FILE_MASKS[H_FILE];
+        static constexpr U64 eastCaptureMask = ~FILES[A_FILE];
+        static constexpr U64 westCaptureMask = ~FILES[H_FILE];
         static constexpr Piece pawnCapturing = isWhite ? BLACK_PAWN : WHITE_PAWN;
 
-        const U64 enPassantSquare = FILE_MASKS[position.irreversibles.enPassantFile] &
-                                    RANK_MASKS[isWhite ? SIXTH_RANK : THIRD_RANK];
+        const U64 enPassantSquare = FILES[position.irreversibles.enPassantFile] &
+                                    RANKS[isWhite ? SIXTH_RANK : THIRD_RANK];
         const U64 shiftedResolvers = isWhite ? north(resolverSquares) : south(resolverSquares);
         const U64 enPassantMask = enPassantSquare & shiftedResolvers;
 
@@ -326,7 +326,7 @@ void MoveGen::genPawnMoves()
         }
 
         U64 doublePawnPushes = (isWhite ? north(pushed1) : south(pushed1))
-            & RANK_MASKS[isWhite ? FOURTH_RANK : FIFTH_RANK]
+            & RANKS[isWhite ? FOURTH_RANK : FIFTH_RANK]
             & position.emptySquares
             & resolverSquares;
         while (doublePawnPushes)
@@ -550,9 +550,9 @@ void MoveGen::updateSafeSquares()
 
     const U64 enemyPawns = position.bitboards[isWhite ? BLACK_PAWN : WHITE_PAWN];
     U64 eastAttacks = isWhite ? southEast(enemyPawns) : northEast(enemyPawns);
-    eastAttacks &= ~FILE_MASKS[A_FILE];
+    eastAttacks &= ~FILES[A_FILE];
     U64 westAttacks = isWhite ? southWest(enemyPawns) : northWest(enemyPawns);
-    westAttacks &= ~FILE_MASKS[H_FILE];
+    westAttacks &= ~FILES[H_FILE];
     attackedSquares |= eastAttacks | westAttacks;
 
     U64 enemyKnights = position.bitboards[isWhite ? BLACK_KNIGHT : WHITE_KNIGHT];
@@ -585,9 +585,9 @@ void MoveGen::updateResolverSquares()
     attackers |= knightMoves[king] & position.bitboards[isWhite ? BLACK_KNIGHT : WHITE_KNIGHT];
 
     U64 eastAttacks = getBoard(isWhite ? northEast(king) : southEast(king));
-    eastAttacks &= ~FILE_MASKS[A_FILE];
+    eastAttacks &= ~FILES[A_FILE];
     U64 westAttacks = getBoard(isWhite ? northWest(king) : southWest(king));
-    westAttacks &= ~FILE_MASKS[H_FILE];
+    westAttacks &= ~FILES[H_FILE];
     attackers |= position.bitboards[isWhite ? BLACK_PAWN : WHITE_PAWN] & (eastAttacks | westAttacks);
 
     if (attackers)

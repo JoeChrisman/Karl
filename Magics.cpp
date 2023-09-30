@@ -94,7 +94,7 @@ U64 Magics::getBishopAttacks(Square from, U64 blockers, bool captures)
     U64 attacks = EMPTY_BOARD;
 
     U64 attack = getBoard(from);
-    while (!(attack & RANK_MASKS[EIGHTH_RANK]) && !(attack & FILE_MASKS[H_FILE]))
+    while (!(attack & RANKS[EIGHTH_RANK]) && !(attack & FILES[H_FILE]))
     {
         attack = northEast(attack);
         if (blockers & attack)
@@ -108,7 +108,7 @@ U64 Magics::getBishopAttacks(Square from, U64 blockers, bool captures)
         attacks |= attack;
     }
     attack = getBoard(from);
-    while (!(attack & RANK_MASKS[FIRST_RANK]) && !(attack & FILE_MASKS[H_FILE]))
+    while (!(attack & RANKS[FIRST_RANK]) && !(attack & FILES[H_FILE]))
     {
         attack = southEast(attack);
         if (blockers & attack)
@@ -122,7 +122,7 @@ U64 Magics::getBishopAttacks(Square from, U64 blockers, bool captures)
         attacks |= attack;
     }
     attack = getBoard(from);
-    while (!(attack & RANK_MASKS[FIRST_RANK]) && !(attack & FILE_MASKS[A_FILE]))
+    while (!(attack & RANKS[FIRST_RANK]) && !(attack & FILES[A_FILE]))
     {
         attack = southWest(attack);
         if (blockers & attack)
@@ -136,7 +136,7 @@ U64 Magics::getBishopAttacks(Square from, U64 blockers, bool captures)
         attacks |= attack;
     }
     attack = getBoard(from);
-    while (!(attack & RANK_MASKS[EIGHTH_RANK]) && !(attack & FILE_MASKS[A_FILE]))
+    while (!(attack & RANKS[EIGHTH_RANK]) && !(attack & FILES[A_FILE]))
     {
         attack = northWest(attack);
         if (blockers & attack)
@@ -157,22 +157,22 @@ U64 Magics::getRookBlockers(Square from)
     int rank = getRank(from);
     int file = getFile(from);
 
-    U64 leftAndRight = FILE_MASKS[A_FILE] | FILE_MASKS[H_FILE];
-    U64 upAndDown = RANK_MASKS[FIRST_RANK] | RANK_MASKS[EIGHTH_RANK];
+    U64 leftAndRight = FILES[A_FILE] | FILES[H_FILE];
+    U64 upAndDown = RANKS[FIRST_RANK] | RANKS[EIGHTH_RANK];
 
     U64 endpoints = EMPTY_BOARD;
-    endpoints |= RANK_MASKS[rank] & leftAndRight;
-    endpoints |= FILE_MASKS[file] & upAndDown;
+    endpoints |= RANKS[rank] & leftAndRight;
+    endpoints |= FILES[file] & upAndDown;
     endpoints &= ~getBoard(from);
     return getRookAttacks(from, endpoints, false) & ~getBoard(from);
 }
 
 U64 Magics::getBishopBlockers(Square from)
 {
-    U64 endpoints = FILE_MASKS[A_FILE] |
-                    FILE_MASKS[H_FILE] |
-                    RANK_MASKS[FIRST_RANK] |
-                    RANK_MASKS[EIGHTH_RANK];
+    U64 endpoints = FILES[A_FILE] |
+                    FILES[H_FILE] |
+                    RANKS[FIRST_RANK] |
+                    RANKS[EIGHTH_RANK];
     endpoints &= ~getBoard(from);
     return getBishopAttacks(from, endpoints, false) & ~getBoard(from);
 

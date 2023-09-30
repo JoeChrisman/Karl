@@ -148,7 +148,7 @@ void Position::print(const bool isWhiteOnBottom)
          square >= A8 && square <= H1;
          isWhiteOnBottom ? square++ : square--)
     {
-        if (getBoard(square) & FILE_MASKS[isWhiteOnBottom ? A_FILE : H_FILE])
+        if (getBoard(square) & FILES[isWhiteOnBottom ? A_FILE : H_FILE])
         {
             std::cout << "\n" << rank << "   ";
             rank += isWhiteOnBottom ? -1 : 1;

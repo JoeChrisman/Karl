@@ -19,7 +19,7 @@ constexpr U64 FULL_BOARD = ~0;
 
 constexpr int MAX_MOVES = 1024;
 
-constexpr U64 FILE_MASKS[8] = {
+constexpr U64 FILES[8] = {
         0x0101010101010101,
         0x0202020202020202,
         0x0404040404040404,
@@ -30,7 +30,7 @@ constexpr U64 FILE_MASKS[8] = {
         0x8080808080808080,
 };
 
-constexpr U64 RANK_MASKS[8] = {
+constexpr U64 RANKS[8] = {
         0xff00000000000000,
         0x00ff000000000000,
         0x0000ff0000000000,
@@ -234,13 +234,11 @@ inline long getEpochMillis()
             std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
-// some debug code will live here temporarily
-
 inline void printBitboard(const U64 board)
 {
     for (Square square = A8; square <= H1; square++)
     {
-        if (FILE_MASKS[A_FILE] & getBoard(square))
+        if (FILES[A_FILE] & getBoard(square))
         {
             std::cout << "\n";
         }
