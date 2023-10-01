@@ -4,31 +4,42 @@
 
 #include "Zobrist.h"
 
-Hash Zobrist::getRandomHash()
+Hash Zobrist::getRandomBits(const int size)
 {
-    return ((Hash)(rand()) << 32) | rand();
+    const Hash random = static_cast<Hash>(
+            (static_cast<Hash>(rand()))) |
+            (static_cast<Hash>(rand()) << 32);
+
+    return random & (0xffffffffffffffff >> (64 - size));
 }
 
 Zobrist::Zobrist()
 : PIECES{0}, CASTLING{0}, EN_PASSANT{0}
 {
-    WHITE_TO_MOVE = getRandomHash();
+    WHITE_TO_MOVE = getRandomBits(64);
 
     for (int castlingFlag = 0; castlingFlag < 16; castlingFlag++)
     {
-        CASTLING[castlingFlag] = getRandomHash();
+        CASTLING[castlingFlag] = getRandomBits(64);
     }
 
     for (int file = A_FILE; file < H_FILE; file++)
     {
-        EN_PASSANT[file] = getRandomHash();
+        EN_PASSANT[file] = getRandomBits(64);
     }
 
     for (Square square = A8; square <= H1; square++)
     {
         for (Piece piece = NULL_PIECE; piece <= BLACK_KING; piece++)
         {
-            PIECES[square][piece] = getRandomHash();
+            if (piece == WHITE_PAWN || piece == BLACK_PAWN)
+            {
+                PIECES[square][piece] = getRandomBits(13) << 51;
+            }
+            else
+            {
+                PIECES[square][piece] = getRandomBits(51);
+            }
         }
     }
 }

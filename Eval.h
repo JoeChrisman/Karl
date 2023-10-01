@@ -7,7 +7,8 @@
 
 #include "Defs.h"
 #include "Position.h"
-// forward declaration
+
+// forward declarations
 class Position;
 #include "MoveGen.h"
 class MoveGen;
@@ -24,21 +25,37 @@ public:
     Evaluator(Position& position, MoveGen& gen);
     Score evaluate();
 
-    float getOpeningWeight();
-
 private:
     Position& position;
     MoveGen& moveGen;
 
+    float getOpeningWeight();
+
+    template<bool isWhite>
+    Score getPawnStructureScore(const U64 friendlyPawns, const U64 enemyPawns);
+
+    struct PawnStructure
+    {
+        bool isValid;
+        Score whiteAdvantage;
+        U64 blackPawns;
+        U64 whitePawns;
+    };
+
+    PawnStructure pawnStructures[8192];
+
+    static constexpr Score ISOLATED_PAWN_PENALTY = -20;
+    static constexpr Score DOUBLED_PAWN_PENALTY = -10;
+
     static constexpr Score KING_ACTIVITY_SCORES[64] = {
-            -99, -99, -80, -80, -80, -80, -99, -99,
-            -99, -40, -40, -20, -20, -40, -40, -99,
-            -80, -20,  40,  70,  70,  40, -40, -80,
-            -80, -20,  70,  99,  99,  70, -20, -80,
-            -80, -20,  70,  99,  99,  70, -20, -80,
-            -80, -40,  40,  70,  70,  40, -40, -80,
-            -99, -40, -40, -20, -20, -40, -40, -99,
-            -99, -99, -80, -80, -80, -80, -99, -99,
+            -50, -50, -40, -40, -40, -40, -50, -50,
+            -50, -20, -10,   0,   0, -10, -20, -50,
+            -40, -10,  20,  30,  30,  20, -10, -40,
+            -40,   0,  30,  50,  50,  30,   0, -40,
+            -40,   0,  30,  50,  50,  30,   0, -40,
+            -40, -10,  20,  30,  30,  20, -10, -40,
+            -50, -20, -10,   0,   0, -10, -20, -50,
+            -50, -50, -40, -40, -40, -40, -50, -50,
     };
 
     static constexpr Score WHITE_KING_SAFETY_SCORES[64] = {
@@ -49,12 +66,11 @@ private:
             -20, -30, -40, -50, -50, -40, -30, -20,
             -20, -20, -20, -20, -20, -20, -20, -20,
               0,   0,   0, -50, -50, -50,   0,   0,
-             30,  50,  20, -50,  10, -50,  50,  30,
-
+             30,  70,  20, -50, -20, -50,  70,  30,
     };
 
     static constexpr Score BLACK_KING_SAFETY_SCORES[64] = {
-             30,  50,  20, -50,  10, -50,  50,  30,
+             30,  70,  20, -50, -20, -50,  70,  30,
               0,   0,   0, -50, -50, -50,   0,   0,
             -20, -20, -20, -20, -20, -20, -20, -20,
             -20, -30, -40, -50, -50, -40, -30, -20,
@@ -64,6 +80,27 @@ private:
             -20, -20, -20, -20, -20, -20, -20, -20,
     };
 
+    static constexpr Score WHITE_PASSED_PAWN_SCORES[64] = {
+            0,   0,   0,   0,   0,   0,   0,   0,
+           99,  99,  99,  99,  99,  99,  99,  99,
+           80,  80,  80,  80,  80,  80,  80,  80,
+           60,  60,  60,  60,  60,  60,  60,  60,
+           50,  50,  50,  50,  50,  50,  50,  50,
+           30,  30,  30,  30,  30,  30,  30,  30,
+           20,  20,  20,  20,  20,  20,  20,  20,
+            0,   0,   0,   0,   0,   0,   0,   0
+    };
+
+    static constexpr Score BLACK_PASSED_PAWN_SCORES[64] = {
+             0,   0,   0,   0,   0,   0,   0,   0,
+            20,  20,  20,  20,  20,  20,  20,  20,
+            30,  30,  30,  30,  30,  30,  30,  30,
+            50,  50,  50,  50,  50,  50,  50,  50,
+            60,  60,  60,  60,  60,  60,  60,  60,
+            80,  80,  80,  80,  80,  80,  80,  80,
+            99,  99,  99,  99,  99,  99,  99,  99,
+             0,   0,   0,   0,   0,   0,   0,   0
+    };
 };
 
 inline constexpr Score MATERIAL_SCORES[13] = {
@@ -98,12 +135,12 @@ inline constexpr Score PLACEMENT_SCORES[13][64] = {
         {
 
                 0,   0,   0,   0,   0,   0,   0,   0,
-                0,   0,   0,   0,   0,   0,   0,   0,
-                0,   0,   0,   0,   0,   0,   0,   0,
+                0,  20,  20,  20,  20,  20,  20,   0,
+                0,   0,  10,  10,  10,  10,   0,   0,
                 0,   0,  15,  15,  15,  15,   0,   0,
                 0,   0,  10,  20,  20,   5,   0,   0,
                 3,   3,   8,   2,   2,  -5,   3,   3,
-                5,   5,   5, -10, -10,   5,   5,   5,
+                5,   5,   5, -20, -20,   5,   5,   5,
                 0,   0,   0,   0,   0,   0,   0,   0
         },
         // WHITE_KNIGHT
@@ -164,12 +201,12 @@ inline constexpr Score PLACEMENT_SCORES[13][64] = {
         // BLACK_PAWN
         {
                  0,   0,   0,   0,   0,   0,   0,   0,
-                -5,  -5,  -5,  10,  10,  -5,  -5,  -5,
+                -5,  -5,  -5,  20,  20,  -5,  -5,  -5,
                 -3,  -3,  -8,  -2,  -2,   5,  -3,  -3,
                  0,   0, -10, -20, -20,  -5,   0,   0,
                  0,   0, -15, -15, -15, -15,   0,   0,
-                 0,   0,   0,   0,   0,   0,   0,   0,
-                 0,   0,   0,   0,   0,   0,   0,   0,
+                 0,   0, -10, -10, -10, -10,   0,   0,
+                 0, -20, -20, -20, -20, -20, -20,   0,
                  0,   0,   0,   0,   0,   0,   0,   0
         },
         // BLACK_KNIGHT

@@ -8,6 +8,15 @@
 Evaluator::Evaluator(Position& position, MoveGen& moveGen) :
     position(position), moveGen(moveGen)
 {
+    for (PawnStructure& pawnStructure : pawnStructures)
+    {
+        pawnStructure = PawnStructure{
+            false,
+            0,
+            EMPTY_BOARD,
+            EMPTY_BOARD
+        };
+    }
 }
 
 Score Evaluator::evaluate()
@@ -26,8 +35,69 @@ Score Evaluator::evaluate()
     const Score whiteKingSafetyAdvantage = static_cast<Score>(
             static_cast<float>(WHITE_KING_SAFETY_SCORES[whiteKing] - BLACK_KING_SAFETY_SCORES[blackKing]) * openingWeight);
 
-    return whiteAdvantage + whiteKingActivityAdvantage + whiteKingSafetyAdvantage;
+    const U64 whitePawns = position.bitboards[WHITE_PAWN];
+    const U64 blackPawns = position.bitboards[BLACK_PAWN];
+
+    const Hash key = position.hash >> 51;
+    PawnStructure& pawnStructure = pawnStructures[key];
+    if (!pawnStructure.isValid ||
+        pawnStructure.whitePawns != whitePawns ||
+        pawnStructure.blackPawns != blackPawns)
+    {
+        const Score whitePawnStructureScore = getPawnStructureScore<true>(whitePawns, blackPawns);
+        const Score blackPawnStructureScore = getPawnStructureScore<false>(blackPawns, whitePawns);
+        pawnStructure.whiteAdvantage = whitePawnStructureScore - blackPawnStructureScore;
+        pawnStructure.isValid = true;
+        pawnStructure.whitePawns = whitePawns;
+        pawnStructure.blackPawns = blackPawns;
+    }
+
+    return
+        whiteAdvantage +
+        whiteKingActivityAdvantage +
+        whiteKingSafetyAdvantage +
+        pawnStructure.whiteAdvantage;
 }
+
+template<bool isWhite>
+Score Evaluator::getPawnStructureScore(const U64 friendlyPawns, const U64 enemyPawns)
+{
+    Score score = 0;
+
+    U64 friendlies = friendlyPawns;
+    while (friendlies)
+    {
+        const Square friendlyPawn = popFirstPiece(friendlies);
+        const int rank = getRank(friendlyPawn);
+        const int file = getFile(friendlyPawn);
+        const U64 fileMask = FILES[file];
+
+        const U64 adjacentFiles = fileMask << 1 & ~FILES[A_FILE] | fileMask >> 1 & ~FILES[H_FILE];
+        // add a penalty if this pawn is isolated
+        if (!(adjacentFiles & friendlyPawns))
+        {
+            score += ISOLATED_PAWN_PENALTY;
+        }
+        // add a penalty if this pawn is doubled
+        if (fileMask & friendlies)
+        {
+            score += DOUBLED_PAWN_PENALTY;
+        }
+        const U64 passerMask = isWhite ? FULL_BOARD >> (rank + 1) * 8 : FULL_BOARD << (7 - rank) * 8;
+        // if this pawn is a passed pawn
+        if (!(passerMask & (adjacentFiles | fileMask) & enemyPawns))
+        {
+            // only the front pawn in a set of stacked pawns should be considered passed
+            if (!(passerMask & fileMask & friendlyPawns))
+            {
+                score += isWhite ? WHITE_PASSED_PAWN_SCORES[friendlyPawn] : BLACK_PASSED_PAWN_SCORES[friendlyPawn];
+            }
+        }
+    }
+
+    return score;
+}
+
 
 float Evaluator::getOpeningWeight()
 {

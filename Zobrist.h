@@ -8,7 +8,7 @@
 #include <random>
 #include "Defs.h"
 
-typedef long long Hash;
+typedef unsigned long long Hash;
 
 class Zobrist
 {
@@ -21,7 +21,7 @@ public:
     Hash WHITE_TO_MOVE;
 
 private:
-    static Hash getRandomHash();
+    static Hash getRandomBits(const int size);
 
 };
 
