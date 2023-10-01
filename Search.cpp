@@ -6,6 +6,15 @@
 #include "Notation.h"
 #include <iomanip>
 
+struct Node
+{
+    Move bestMove;
+    Hash hash;
+};
+
+inline constexpr int TRANSPOSITION_TABLE_SIZE = 1048583;
+Node transpositionTable[TRANSPOSITION_TABLE_SIZE];
+
 Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
 : position(position), moveGen(moveGen), evaluator(evaluator), captureScores{0}, killerMoves{{NULL_MOVE}}
 {
@@ -16,12 +25,21 @@ Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
     endTime = 0;
     isOutOfTime = false;
 
+    for (Node& node : transpositionTable)
+    {
+        node = Node {
+            NULL_MOVE,
+            0x0000000000000000
+        };
+    }
+
     static constexpr Score attackerScores[13] = {
             0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
     };
     static constexpr Score victimScores[13] = {
-            0, 100, 200, 300, 400, 500, 0, 100, 200, 300, 400, 500, 0
+            0, 5, 10, 10, 15, 20, 0, 5, 10, 10, 15, 20, 0
     };
+
     for (Piece attacker = NULL_PIECE; attacker <= BLACK_KING; attacker++)
     {
         for (Piece victim = NULL_PIECE; victim <= BLACK_KING; victim++)
@@ -32,7 +50,7 @@ Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
 }
 
 template<bool isQuiescent>
-void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth)
+void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth, const Move principalMove)
 {
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
@@ -48,10 +66,15 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
         // during the normal search
         else
         {
-            if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
+            if (move == principalMove)
+            {
+                // principal variation moves are best
+                score = 22;
+            }
+            else if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
             {
                 // put killer moves after captures
-                score = 94;
+                score = 21;
             }
             else
             {
@@ -105,7 +128,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     const Position::Irreversibles state = position.irreversibles;
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
     {
-        orderMove<true>(captures, numCaptures, captureNum, -1);
+        orderMove<true>(captures, numCaptures, captureNum, -1, NULL_MOVE);
         const Move move = captures[captureNum];
         position.makeMove(move);
         score = -quiescence(-beta, -alpha, -color);
@@ -163,21 +186,48 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         }
     }
 
+    Move principalMove = NULL_MOVE;
+    const Hash key = position.hash % TRANSPOSITION_TABLE_SIZE;
+    Node& node = transpositionTable[key];
+    if (node.hash == position.hash)
+    {
+        principalMove = node.bestMove;
+    }
+
     Move moves[256];
     std::memcpy(moves, moveGen.moveList, sizeof moveGen.moveList);
     const Position::Irreversibles state = position.irreversibles;
+
+    Move bestMove = NULL_MOVE;
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
-        orderMove<false>(moves, numMoves, moveNum, depth);
+        Score score = 0;
+        orderMove<false>(moves, numMoves, moveNum, depth, principalMove);
         const Move move = moves[moveNum];
 
         position.makeMove(move);
-        const Score score = -negamax(-color, depth - 1, -beta, -alpha);
+        if (move == principalMove)
+        {
+            // do a full width search for a node in the principal variation
+            score = -negamax(-color, depth - 1, -beta, -alpha);
+        }
+        else
+        {
+            // do a null window search for non principal variation nodes
+            score = -negamax(-color, depth - 1, -alpha - 1, -alpha);
+            // if the null window search did not fail low or high
+            if (score > alpha && score < beta)
+            {
+                // search it again with a full window
+                score = -negamax(-color, depth - 1, -beta, -alpha);
+            }
+        }
         position.unMakeMove(move, state);
 
         if (score > alpha)
         {
             alpha = score;
+            bestMove = move;
             if (score >= beta)
             {
                 // a quiet move that caused a beta cutoff is a killer move
@@ -191,6 +241,12 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         }
     }
 
+    if (bestMove != NULL_MOVE)
+    {
+        // this node is a principal variation node, so write to the transposition table
+        node.hash = position.hash;
+        node.bestMove = bestMove;
+    }
     return alpha;
 }
 
@@ -236,6 +292,12 @@ ScoredMove Search::searchByDepth(const int depth)
     }
     // add some variance when choosing between equal moves
     ScoredMove bestMove = ScoredMove{bestMoves[rand() % bestMoves.size()], bestScore};
+
+    const Hash key = position.hash % 1048583;
+    Node& node = transpositionTable[key];
+    node.bestMove = bestMove.move;
+    node.hash = position.hash;
+
     printSearchInfo(getEpochMillis() - startMillis, depth, bestMove);
 
     return bestMove;
@@ -317,6 +379,10 @@ void Search::printSearchInfo(
     std::cout << std::setw(13) << "| Leaf nodes: " << std::setw(10) << leafNodes;
     std::cout << std::setw(7) << "| kN/S: " << std::setw(6) << kNodesPerSec;
     std::cout << std::setw(6) << "| ABF: " << std::setw(10) << branchingFactor << "\n";
+    std::cout << "info string | Principal variation: ";
+    printPrincipalVariation(position.hash);
+    std::cout << "\n";
+
 }
 
 void Search::printSearchTime(
@@ -324,4 +390,17 @@ void Search::printSearchTime(
         const long startTime)
 {
     std::cout << "info string Target elapsed: " << msTargetElapsed << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
+}
+
+void Search::printPrincipalVariation(const Hash zobristHash)
+{
+    Node node = transpositionTable[zobristHash % TRANSPOSITION_TABLE_SIZE];
+    if (node.hash == zobristHash)
+    {
+        std::cout << moveToStr(node.bestMove) << ", ";
+        const Position::Irreversibles state = position.irreversibles;
+        position.makeMove(node.bestMove);
+        printPrincipalVariation(position.hash);
+        position.unMakeMove(node.bestMove, state);
+    }
 }

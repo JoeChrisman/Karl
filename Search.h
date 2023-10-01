@@ -30,11 +30,13 @@ private:
     Position& position;
     MoveGen& moveGen;
 
+    void printPrincipalVariation(const Hash zobristHash);
+
     Score quiescence(Score alpha, const Score beta, const int color);
     Score negamax(const int color, const int depth, Score alpha, Score beta);
 
     template<bool isQuiescent>
-    void orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth);
+    void orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth, const Move principalMove);
 
     inline bool isRepetition();
 
