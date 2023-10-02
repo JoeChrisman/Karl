@@ -30,8 +30,6 @@ private:
     Position& position;
     MoveGen& moveGen;
 
-    void printPrincipalVariation(const Hash zobristHash);
-
     Score quiescence(Score alpha, const Score beta, const int color);
     Score negamax(const int color, const int depth, Score alpha, Score beta);
 
@@ -44,6 +42,8 @@ private:
             const long msElapsed,
             const int depth,
             const ScoredMove& bestMove);
+
+    void printPrincipalVariation(const Hash zobristHash, const int depth);
 
     void printSearchTime(
             const long msTargetElapsed,

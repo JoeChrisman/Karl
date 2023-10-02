@@ -380,7 +380,7 @@ void Search::printSearchInfo(
     std::cout << std::setw(7) << "| kN/S: " << std::setw(6) << kNodesPerSec;
     std::cout << std::setw(6) << "| ABF: " << std::setw(10) << branchingFactor << "\n";
     std::cout << "info string | Principal variation: ";
-    printPrincipalVariation(position.hash);
+    printPrincipalVariation(position.hash, depth + 1);
     std::cout << "\n";
 
 }
@@ -392,15 +392,15 @@ void Search::printSearchTime(
     std::cout << "info string Target elapsed: " << msTargetElapsed << ", Actual elapsed: " << getEpochMillis() - startTime << "\n";
 }
 
-void Search::printPrincipalVariation(const Hash zobristHash)
+void Search::printPrincipalVariation(const Hash zobristHash, const int depth)
 {
     Node node = transpositionTable[zobristHash % TRANSPOSITION_TABLE_SIZE];
-    if (node.hash == zobristHash)
+    if (node.hash == zobristHash && depth)
     {
         std::cout << moveToStr(node.bestMove) << ", ";
         const Position::Irreversibles state = position.irreversibles;
         position.makeMove(node.bestMove);
-        printPrincipalVariation(position.hash);
+        printPrincipalVariation(position.hash, depth - 1);
         position.unMakeMove(node.bestMove, state);
     }
 }
