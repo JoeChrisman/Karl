@@ -36,13 +36,13 @@ private:
 
     struct PawnStructure
     {
-        bool isValid;
         Score whiteAdvantage;
         U64 blackPawns;
         U64 whitePawns;
     };
 
-    PawnStructure pawnStructures[8192];
+    static constexpr int NUM_PAWN_STRUCTURES = 8192;
+    PawnStructure pawnStructures[NUM_PAWN_STRUCTURES];
 
     static constexpr Score ISOLATED_PAWN_PENALTY = -20;
     static constexpr Score DOUBLED_PAWN_PENALTY = -10;

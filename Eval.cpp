@@ -8,15 +8,7 @@
 Evaluator::Evaluator(Position& position, MoveGen& moveGen) :
     position(position), moveGen(moveGen)
 {
-    for (PawnStructure& pawnStructure : pawnStructures)
-    {
-        pawnStructure = PawnStructure{
-            false,
-            0,
-            EMPTY_BOARD,
-            EMPTY_BOARD
-        };
-    }
+    std::memset(pawnStructures, 0, sizeof(pawnStructures));
 }
 
 Score Evaluator::evaluate()
@@ -38,16 +30,14 @@ Score Evaluator::evaluate()
     const U64 whitePawns = position.bitboards[WHITE_PAWN];
     const U64 blackPawns = position.bitboards[BLACK_PAWN];
 
-    const Hash key = position.hash >> 51;
-    PawnStructure& pawnStructure = pawnStructures[key];
-    if (!pawnStructure.isValid ||
-        pawnStructure.whitePawns != whitePawns ||
+    const Hash pawnStructureKey = (whitePawns | blackPawns) % NUM_PAWN_STRUCTURES;
+    PawnStructure& pawnStructure = pawnStructures[pawnStructureKey];
+    if (pawnStructure.whitePawns != whitePawns ||
         pawnStructure.blackPawns != blackPawns)
     {
         const Score whitePawnStructureScore = getPawnStructureScore<true>(whitePawns, blackPawns);
         const Score blackPawnStructureScore = getPawnStructureScore<false>(blackPawns, whitePawns);
         pawnStructure.whiteAdvantage = whitePawnStructureScore - blackPawnStructureScore;
-        pawnStructure.isValid = true;
         pawnStructure.whitePawns = whitePawns;
         pawnStructure.blackPawns = blackPawns;
     }
@@ -83,7 +73,7 @@ Score Evaluator::getPawnStructureScore(const U64 friendlyPawns, const U64 enemyP
         {
             score += DOUBLED_PAWN_PENALTY;
         }
-        const U64 passerMask = isWhite ? FULL_BOARD >> (rank + 1) * 8 : FULL_BOARD << (7 - rank) * 8;
+        const U64 passerMask = isWhite ? FULL_BOARD >> (rank + 1) * 8 : FULL_BOARD << (7 - rank + 1) * 8;
         // if this pawn is a passed pawn
         if (!(passerMask & (adjacentFiles | fileMask) & enemyPawns))
         {

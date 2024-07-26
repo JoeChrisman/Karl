@@ -34,11 +34,11 @@ Zobrist::Zobrist()
         {
             if (piece == WHITE_PAWN || piece == BLACK_PAWN)
             {
-                PIECES[square][piece] = getRandomBits(13) << 51;
+                PIECES[square][piece] = getRandomBits(64);
             }
             else
             {
-                PIECES[square][piece] = getRandomBits(51);
+                PIECES[square][piece] = getRandomBits(64);
             }
         }
     }
