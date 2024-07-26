@@ -247,6 +247,5 @@ U64 Magics::getMagicNumber(Square square, bool isCardinal)
         }
     }
     std::cout << "~ Critical Error. Magic number generation failed on square " << square << ".\n";
-    assert(false);
 }
 

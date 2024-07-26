@@ -16,7 +16,7 @@ inline constexpr int TRANSPOSITION_TABLE_SIZE = 1048583;
 Node transpositionTable[TRANSPOSITION_TABLE_SIZE];
 
 Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
-: position(position), moveGen(moveGen), evaluator(evaluator), captureScores{0}, killerMoves{{NULL_MOVE}}
+: position(position), moveGen(moveGen), evaluator(evaluator)
 {
     branchNodes = 0;
     leafNodes = 0;
@@ -25,19 +25,34 @@ Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
     endTime = 0;
     isOutOfTime = false;
 
-    for (Node& node : transpositionTable)
-    {
-        node = Node {
-            NULL_MOVE,
-            0x0000000000000000
-        };
-    }
+    initKillerMoves();
+    initCaptureScores();
+    initTranspositions();
+    initHistory();
+}
 
+void Search::initKillerMoves()
+{
+    std::memset(killerMoves, 0, sizeof(killerMoves));
+}
+
+void Search::initHistory()
+{
+    std::memset(history, 0, sizeof(history));
+}
+
+void Search::initTranspositions()
+{
+    std::memset(transpositionTable, 0, sizeof(transpositionTable));
+}
+
+void Search::initCaptureScores()
+{
     static constexpr Score attackerScores[13] = {
-            0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
+        0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0
     };
     static constexpr Score victimScores[13] = {
-            0, 5, 10, 10, 15, 20, 0, 5, 10, 10, 15, 20, 0
+        0, 5, 10, 10, 15, 20, 0, 5, 10, 10, 15, 20, 0
     };
 
     for (Piece attacker = NULL_PIECE; attacker <= BLACK_KING; attacker++)
@@ -50,7 +65,13 @@ Search::Search(Position& position, MoveGen& moveGen, Evaluator& evaluator)
 }
 
 template<bool isQuiescent>
-void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth, const Move principalMove)
+void Search::orderMove(
+    Move moves[256],
+    const int numMoves,
+    const int moveNum,
+    const int depth,
+    const int color,
+    const Move principalMove)
 {
     Score bestScore = MIN_SCORE;
     int bestMoveIndex = -1;
@@ -69,17 +90,22 @@ void Search::orderMove(Move moves[256], const int numMoves, const int moveNum, c
             if (move == principalMove)
             {
                 // principal variation moves are best
-                score = 22;
+                score = INT_MAX;
+            }
+            else if (getCaptured(move) != NULL_PIECE)
+            {
+                // order moves based on capture value and piece value
+                score = INT_MAX - 100 + captureScores[getMoved(move)][getCaptured(move)];
             }
             else if (move == killerMoves[depth][0] || move == killerMoves[depth][1])
             {
                 // put killer moves after captures
-                score = 21;
+                score = INT_MAX - 200;
             }
             else
             {
-                // order moves based on capture value and piece value
-                score = captureScores[getMoved(move)][getCaptured(move)];
+                // order other quiet moves by history
+                score = history[color == -1 ? 0 : 1][getFrom(move)][getTo(move)];
             }
         }
         if (score > bestScore)
@@ -128,7 +154,7 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     const Position::Irreversibles state = position.irreversibles;
     for (int captureNum = 0; captureNum < numCaptures; captureNum++)
     {
-        orderMove<true>(captures, numCaptures, captureNum, -1, NULL_MOVE);
+        orderMove<true>(captures, numCaptures, captureNum, -1, color, NULL_MOVE);
         const Move move = captures[captureNum];
         position.makeMove(move);
         score = -quiescence(-beta, -alpha, -color);
@@ -202,7 +228,7 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
     for (int moveNum = 0; moveNum < numMoves; moveNum++)
     {
         Score score = 0;
-        orderMove<false>(moves, numMoves, moveNum, depth, principalMove);
+        orderMove<false>(moves, numMoves, moveNum, depth, color, principalMove);
         const Move move = moves[moveNum];
 
         position.makeMove(move);
@@ -228,10 +254,16 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         {
             alpha = score;
             bestMove = move;
+
+            const bool isCapture = getCaptured(move) != NULL_PIECE;
+            if (isCapture)
+            {
+                history[color == -1 ? 0 : 1][getFrom(move)][getTo(move)] += depth * depth;
+            }
             if (score >= beta)
             {
                 // a quiet move that caused a beta cutoff is a killer move
-                if (getCaptured(move) == NULL_PIECE)
+                if (!isCapture)
                 {
                     killerMoves[depth][1] = killerMoves[depth][0];
                     killerMoves[depth][0] = move;
@@ -305,6 +337,9 @@ ScoredMove Search::searchByDepth(const int depth)
 
 Move Search::searchByTime(const int msTargetElapsed)
 {
+    initHistory();
+    initKillerMoves();
+
     long startTime = getEpochMillis();
 
     moveGen.genMoves();

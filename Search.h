@@ -30,11 +30,26 @@ private:
     Position& position;
     MoveGen& moveGen;
 
+    Score captureScores[13][13];
+    Move killerMoves[MAX_DEPTH][2];
+    int history[2][64][64];
+
+    inline void initHistory();
+    inline void initKillerMoves();
+    inline void initCaptureScores();
+    inline void initTranspositions();
+
     Score quiescence(Score alpha, const Score beta, const int color);
     Score negamax(const int color, const int depth, Score alpha, Score beta);
 
     template<bool isQuiescent>
-    void orderMove(Move moves[256], const int numMoves, const int moveNum, const int depth, const Move principalMove);
+    void orderMove(
+        Move moves[256],
+        const int numMoves,
+        const int moveNum,
+        const int depth,
+        const int color,
+        const Move principalMove);
 
     inline bool isRepetition();
 
@@ -55,9 +70,6 @@ private:
 
     long endTime;
     bool isOutOfTime;
-
-    Score captureScores[13][13];
-    Move killerMoves[MAX_DEPTH][2];
 };
 
 #endif //KARL_SEARCH_H
