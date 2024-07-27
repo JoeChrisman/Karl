@@ -66,6 +66,10 @@ public:
     void makeMove(const Move move);
     void unMakeMove(const Move move, const Irreversibles& state);
 
+    bool isZugzwang();
+    void makeNullMove();
+    void unMakeNullMove(const int enPassantBefore);
+
     void updateBitboards();
 private:
     const Zobrist& zobrist;

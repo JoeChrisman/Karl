@@ -73,6 +73,10 @@ private:
     template<bool isWhite, bool quiets>
     void genKingMoves();
 
+    template<bool isWhite>
+    bool isInCheck();
+
+
     void initKnightMoves();
     void initKingMoves();
     U64 knightMoves[64];

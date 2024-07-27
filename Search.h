@@ -40,7 +40,12 @@ private:
     inline void initTranspositions();
 
     Score quiescence(Score alpha, const Score beta, const int color);
-    Score negamax(const int color, const int depth, Score alpha, Score beta);
+    Score negamax(
+        const int color,
+        const int depth,
+        const bool isNull,
+        Score alpha,
+        Score beta);
 
     template<bool isQuiescent>
     void orderMove(

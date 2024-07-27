@@ -171,7 +171,12 @@ Score Search::quiescence(Score alpha, const Score beta, const int color)
     return alpha;
 }
 
-Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
+Score Search::negamax(
+    const int color,
+    const int depth,
+    const bool isNull,
+    Score alpha,
+    Score beta)
 {
     if (isOutOfTime)
     {
@@ -183,7 +188,7 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         return CONTEMPT;
     }
 
-    if (!depth)
+    if (depth <= 0)
     {
         // check if we ran out of time every few thousand leaf nodes
         if ((++leafNodes & 8191) == 0 && getEpochMillis() > endTime)
@@ -195,12 +200,25 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         return quiescence(alpha, beta, color);
     }
 
+    const bool isInCheck = moveGen.isInCheck(color);
+    if (!isNull && !isInCheck && depth >= 4 && !position.isZugzwang())
+    {
+        const int enPassantBefore = position.irreversibles.enPassantFile;
+        position.makeNullMove();
+        int score = -negamax(-color, depth - 4, true, -beta, -beta + 1);
+        position.unMakeNullMove(enPassantBefore);
+        if (score >= beta)
+        {
+            return beta;
+        }
+    }
+
     branchNodes++;
     moveGen.genMoves();
     const int numMoves = moveGen.numMoves;
     if (numMoves == 0)
     {
-        if (moveGen.isInCheck(color))
+        if (isInCheck)
         {
             // return a checkmate score, and lower the score the farther the checkmate is
             return MIN_SCORE + MAX_DEPTH - depth;
@@ -235,17 +253,17 @@ Score Search::negamax(const int color, const int depth, Score alpha, Score beta)
         if (move == principalMove)
         {
             // do a full width search for a node in the principal variation
-            score = -negamax(-color, depth - 1, -beta, -alpha);
+            score = -negamax(-color, depth - 1, false, -beta, -alpha);
         }
         else
         {
             // do a null window search for non principal variation nodes
-            score = -negamax(-color, depth - 1, -alpha - 1, -alpha);
+            score = -negamax(-color, depth - 1, false, -alpha - 1, -alpha);
             // if the null window search did not fail low or high
             if (score > alpha && score < beta)
             {
                 // search it again with a full window
-                score = -negamax(-color, depth - 1, -beta, -alpha);
+                score = -negamax(-color, depth - 1, false, -beta, -alpha);
             }
         }
         position.unMakeMove(move, state);
@@ -304,7 +322,7 @@ ScoredMove Search::searchByDepth(const int depth)
         Move move = moves[i];
 
         position.makeMove(move);
-        Score score = -negamax(position.isWhiteToMove ? 1 : -1, depth, MIN_SCORE, MAX_SCORE);
+        Score score = -negamax(position.isWhiteToMove ? 1 : -1, depth, false, MIN_SCORE, MAX_SCORE);
         position.unMakeMove(move, state);
 
         if (isOutOfTime)

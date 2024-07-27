@@ -197,6 +197,41 @@ void Position::unMakeMove(const Move move, const Irreversibles& state)
     }
 }
 
+bool Position::isZugzwang()
+{
+    U64 heavies = bitboards[isWhiteToMove ? WHITE_QUEEN : BLACK_QUEEN];
+    heavies |= bitboards[isWhiteToMove ? WHITE_BISHOP : BLACK_BISHOP];
+    heavies |= bitboards[isWhiteToMove ? WHITE_ROOK : BLACK_ROOK];
+    return !static_cast<bool>(heavies);
+
+}
+
+void Position::makeNullMove()
+{
+    isWhiteToMove = !isWhiteToMove;
+    if (irreversibles.enPassantFile > -1)
+    {
+        hash ^= zobrist.EN_PASSANT[irreversibles.enPassantFile];
+        irreversibles.enPassantFile = -1;
+    }
+    hash ^= zobrist.WHITE_TO_MOVE;
+    history[++totalPlies] = hash;
+}
+
+void Position::unMakeNullMove(const int enPassantBefore)
+{
+    isWhiteToMove = !isWhiteToMove;
+    irreversibles.enPassantFile = enPassantBefore;
+    if (enPassantBefore > -1)
+    {
+        hash ^= zobrist.EN_PASSANT[enPassantBefore];
+        irreversibles.enPassantFile = enPassantBefore;
+    }
+    totalPlies--;
+    hash ^= zobrist.WHITE_TO_MOVE;
+}
+
+
 template<bool isWhite>
 void Position::doMove(const Move move)
 {

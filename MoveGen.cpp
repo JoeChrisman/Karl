@@ -671,6 +671,27 @@ void MoveGen::updatePins()
     position.occupiedSquares ^= pinned;
 }
 
+template<bool isWhite>
+bool MoveGen::isInCheck()
+{
+    const U64 king = position.bitboards[isWhite ? WHITE_KING : BLACK_KING];
+    const U64 enemyRooks = position.bitboards[isWhite ? BLACK_ROOK : WHITE_ROOK];
+    const U64 enemyBishops = position.bitboards[isWhite ? BLACK_BISHOP : WHITE_BISHOP];
+    const U64 enemyQueens = position.bitboards[isWhite ? BLACK_QUEEN : WHITE_QUEEN];
+
+    U64 attackers = EMPTY_BOARD;
+    const Square kingSquare = getSquare(king);
+    attackers |= getSlidingMoves<true>(kingSquare) & (enemyRooks | enemyQueens);
+    attackers |= getSlidingMoves<false>(kingSquare) & (enemyBishops | enemyQueens);
+    attackers |= knightMoves[kingSquare] & position.bitboards[isWhite ? BLACK_KNIGHT : WHITE_KNIGHT];
+
+    const U64 pawnAttackRank = isWhite ? north(king) : south(king);
+    U64 pawnAttacks = (east(pawnAttackRank) & ~FILES[A_FILE]) | (west(pawnAttackRank) & ~FILES[A_FILE]);
+    pawnAttacks &= position.bitboards[isWhite ? BLACK_PAWN : WHITE_PAWN];
+    attackers |= pawnAttacks;
+    return static_cast<bool>(attackers);
+}
+
 // generate fully legal moves
 template<bool isWhite, bool quiets>
 void MoveGen::genLegalMoves()
@@ -717,5 +738,5 @@ void MoveGen::genCaptures()
 
 bool MoveGen::isInCheck(const int color)
 {
-    return ~safeSquares & position.bitboards[color == 1 ? WHITE_KING : BLACK_KING];
+    return color == 1 ? isInCheck<true>() : isInCheck<false>();
 }
